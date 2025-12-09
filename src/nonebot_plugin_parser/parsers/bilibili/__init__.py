@@ -13,8 +13,8 @@ from bilibili_api.login_v2 import QrCodeLogin, QrCodeLoginEvents
 
 from ..base import (
     DOWNLOADER,
-    BaseParser,
     MediaType,
+    BaseParser,
     PlatformEnum,
     ParseException,
     DownloadException,

@@ -9,7 +9,7 @@ import aiofiles
 from httpx import HTTPError, AsyncClient
 from nonebot import logger
 
-from .base import DOWNLOADER, MediaType, Platform, BaseParser, PlatformEnum, handle, pconfig
+from .base import DOWNLOADER, Platform, MediaType, BaseParser, PlatformEnum, handle, pconfig
 from ..utils import safe_unlink
 from ..constants import COMMON_TIMEOUT, DOWNLOAD_TIMEOUT
 from ..exception import ParseException, DownloadException

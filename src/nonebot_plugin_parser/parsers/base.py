@@ -9,17 +9,22 @@ from pathlib import Path
 from collections.abc import Callable, Coroutine
 from typing_extensions import Unpack
 
-from .data import Platform, ParseResult, ParseResultKwargs
-from ..config import MediaMode, pconfig as pconfig
-from ..download import DOWNLOADER as DOWNLOADER
+from .data import (
+    Platform,
+    ParseResult,
+    AudioContent,
+    ImageContent,
+    VideoContent,
+    DynamicContent,
+    GraphicsContent,
+    ParseResultKwargs,
+)
+from ..config import MediaMode, pconfig
+from ..download import DOWNLOADER
 from ..constants import IOS_HEADER, COMMON_HEADER, ANDROID_HEADER, COMMON_TIMEOUT
-from ..constants import PlatformEnum as PlatformEnum
-from ..exception import TipException as TipException
-from ..exception import ParseException as ParseException
-from ..exception import DownloadException as DownloadException
-from ..exception import ZeroSizeException as ZeroSizeException
-from ..exception import SizeLimitException as SizeLimitException
-from ..exception import DurationLimitException as DurationLimitException
+from ..exception import (
+    ParseException,
+)
 
 T = TypeVar("T", bound="BaseParser")
 HandlerFunc = Callable[[T, Match[str]], Coroutine[Any, Any, ParseResult]]
@@ -237,7 +242,6 @@ class BaseParser:
         if not self.allows_media(MediaType.IMAGE):
             return []
 
-        from .data import ImageContent
 
         contents: list[ImageContent] = []
         for url in image_urls:
@@ -253,7 +257,6 @@ class BaseParser:
         if not self.allows_media(MediaType.DYNAMIC):
             return []
 
-        from .data import DynamicContent
 
         contents: list[DynamicContent] = []
         for url in dynamic_urls:
@@ -287,7 +290,6 @@ class BaseParser:
         if not self.allows_media(MediaType.GRAPHICS):
             return None
 
-        from .data import GraphicsContent
 
         image_task = DOWNLOADER.download_img(image_url, ext_headers=self.headers)
         return GraphicsContent(image_task, text, alt)

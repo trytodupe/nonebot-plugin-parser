@@ -1,8 +1,8 @@
 import re
 from typing import ClassVar
 
-from .base import BaseParser, MediaType, PlatformEnum, handle
-from .data import Author, Platform, VideoContent
+from .base import MediaType, BaseParser, PlatformEnum, handle
+from .data import Author, Platform
 from ..download import YTDLP_DOWNLOADER
 
 

@@ -4,7 +4,7 @@ from typing import ClassVar
 import msgspec
 from httpx import AsyncClient
 
-from .base import Platform, BaseParser, MediaType, PlatformEnum, handle, pconfig
+from .base import Platform, MediaType, BaseParser, PlatformEnum, handle, pconfig
 from .cookie import save_cookies_with_netscape
 from ..download import YTDLP_DOWNLOADER
 
