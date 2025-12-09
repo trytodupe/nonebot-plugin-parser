@@ -95,7 +95,8 @@ class DouyinParser(BaseParser):
         elif video_url := video_data.video_url:
             cover_url = video_data.cover_url
             duration = video_data.video.duration if video_data.video else 0
-            contents.append(self.create_video_content(video_url, cover_url, duration))
+            if video_content := self.create_video_content(video_url, cover_url, duration):
+                contents.append(video_content)
 
         # 构建作者
         author = self.create_author(video_data.author.nickname, video_data.avatar_url)

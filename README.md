@@ -199,6 +199,10 @@ parser_disabled_platforms='["twitter"]'
 # 可选 "default"(无图片渲染), "common"(PIL 通用图片渲染), "htmlkit"(htmlkit, 暂不可用)
 parser_render_type="common"
 
+# [可选] 媒体下载模式
+# 可选 "all"(默认, 下载所有媒体), "image_only"(仅下载图片/图文), "none"(只返回文本和元数据)
+parser_media_mode="all"
+
 # [可选] 是否在解析结果中附加原始URL
 parser_append_url=False
 
@@ -217,6 +221,8 @@ parser_emoji_cdn="https://emojicdn.elk.sh"
 # [可选] emoji 渲染样式 "apple", "google", "twitter", "facebook"(默认)
 parser_emoji_style="facebook"
 ```
+
+`parser_media_mode` 控制媒体下载策略：`all` 保持当前行为，`image_only` 仅下载图片/图文内容(跳过视频、音频、动图)，`none` 则完全跳过媒体下载，只返回文本和元数据。
 
 </details>
 

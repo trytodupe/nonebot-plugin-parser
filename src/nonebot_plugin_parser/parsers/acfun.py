@@ -9,7 +9,7 @@ import aiofiles
 from httpx import HTTPError, AsyncClient
 from nonebot import logger
 
-from .base import DOWNLOADER, Platform, BaseParser, PlatformEnum, handle, pconfig
+from .base import DOWNLOADER, MediaType, Platform, BaseParser, PlatformEnum, handle, pconfig
 from ..utils import safe_unlink
 from ..constants import COMMON_TIMEOUT, DOWNLOAD_TIMEOUT
 from ..exception import ParseException, DownloadException
@@ -35,15 +35,18 @@ class AcfunParser(BaseParser):
         timestamp = int(time.mktime(time.strptime(upload_time, "%Y-%m-%d")))
         text = f"简介: {description}"
 
-        # 下载视频
-        video_task = asyncio.create_task(self.download_video(m3u8_url, acid))
+        contents = []
+        if self.allows_media(MediaType.VIDEO):
+            video_task = asyncio.create_task(self.download_video(m3u8_url, acid))
+            if video_content := self.create_video_content(video_task):
+                contents.append(video_content)
 
         return self.result(
             title=title,
             text=text,
             author=author,
             timestamp=timestamp,
-            contents=[self.create_video_content(video_task)],
+            contents=contents,
         )
 
     async def parse_video_info(self, url: str) -> tuple[str, str, str, str, str]:

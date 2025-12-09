@@ -4,7 +4,7 @@ from typing import ClassVar
 import msgspec
 from httpx import AsyncClient
 
-from .base import Platform, BaseParser, PlatformEnum, handle, pconfig
+from .base import Platform, BaseParser, MediaType, PlatformEnum, handle, pconfig
 from .cookie import save_cookies_with_netscape
 from ..download import YTDLP_DOWNLOADER
 
@@ -39,15 +39,11 @@ class YouTubeParser(BaseParser):
         author = await self._fetch_author_info(video_info.channel_id)
 
         contents = []
-        if video_info.duration <= pconfig.duration_maximum:
+        can_download_video = video_info.duration <= pconfig.duration_maximum and self.allows_media(MediaType.VIDEO)
+        if can_download_video:
             video = YTDLP_DOWNLOADER.download_video(url, self.cookies_file)
-            contents.append(
-                self.create_video_content(
-                    video,
-                    video_info.thumbnail,
-                    video_info.duration,
-                )
-            )
+            if video_content := self.create_video_content(video, video_info.thumbnail, video_info.duration):
+                contents.append(video_content)
         else:
             contents.extend(self.create_image_contents([video_info.thumbnail]))
 
@@ -74,9 +70,10 @@ class YouTubeParser(BaseParser):
         contents = []
         contents.extend(self.create_image_contents([video_info.thumbnail]))
 
-        if video_info.duration <= pconfig.duration_maximum:
+        if video_info.duration <= pconfig.duration_maximum and self.allows_media(MediaType.AUDIO):
             audio_task = YTDLP_DOWNLOADER.download_audio(url, self.cookies_file)
-            contents.append(self.create_audio_content(audio_task, duration=video_info.duration))
+            if audio_content := self.create_audio_content(audio_task, duration=video_info.duration):
+                contents.append(audio_content)
 
         return self.result(
             title=video_info.title,

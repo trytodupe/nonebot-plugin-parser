@@ -2,6 +2,7 @@
 
 from re import Match, Pattern, compile
 from abc import ABC
+from enum import Enum
 from typing import TYPE_CHECKING, Any, TypeVar, ClassVar, cast
 from asyncio import Task
 from pathlib import Path
@@ -9,7 +10,7 @@ from collections.abc import Callable, Coroutine
 from typing_extensions import Unpack
 
 from .data import Platform, ParseResult, ParseResultKwargs
-from ..config import pconfig as pconfig
+from ..config import MediaMode, pconfig as pconfig
 from ..download import DOWNLOADER as DOWNLOADER
 from ..constants import IOS_HEADER, COMMON_HEADER, ANDROID_HEADER, COMMON_TIMEOUT
 from ..constants import PlatformEnum as PlatformEnum
@@ -41,6 +42,14 @@ def handle(keyword: str, pattern: str):
         return func
 
     return decorator
+
+
+class MediaType(str, Enum):
+    VIDEO = "video"
+    AUDIO = "audio"
+    IMAGE = "image"
+    GRAPHICS = "graphics"
+    DYNAMIC = "dynamic"
 
 
 class BaseParser:
@@ -137,6 +146,15 @@ class BaseParser:
         """构建解析结果"""
         return ParseResult(platform=cls.platform, **kwargs)
 
+    def allows_media(self, media_type: MediaType) -> bool:
+        """根据配置判断是否允许下载特定类型的媒体"""
+        mode = pconfig.media_mode
+        if mode is MediaMode.all:
+            return True
+        if mode is MediaMode.image_only:
+            return media_type in (MediaType.IMAGE, MediaType.GRAPHICS)
+        return False
+
     @staticmethod
     async def get_redirect_url(
         url: str,
@@ -196,8 +214,11 @@ class BaseParser:
         url_or_task: str | Task[Path],
         cover_url: str | None = None,
         duration: float = 0.0,
-    ):
+    ) -> VideoContent | None:
         """创建视频内容"""
+        if not self.allows_media(MediaType.VIDEO):
+            return None
+
         from .data import VideoContent
 
         cover_task = None
@@ -213,6 +234,9 @@ class BaseParser:
         image_urls: list[str],
     ):
         """创建图片内容列表"""
+        if not self.allows_media(MediaType.IMAGE):
+            return []
+
         from .data import ImageContent
 
         contents: list[ImageContent] = []
@@ -226,6 +250,9 @@ class BaseParser:
         dynamic_urls: list[str],
     ):
         """创建动态图片内容列表"""
+        if not self.allows_media(MediaType.DYNAMIC):
+            return []
+
         from .data import DynamicContent
 
         contents: list[DynamicContent] = []
@@ -238,8 +265,11 @@ class BaseParser:
         self,
         url_or_task: str | Task[Path],
         duration: float = 0.0,
-    ):
+    ) -> AudioContent | None:
         """创建音频内容"""
+        if not self.allows_media(MediaType.AUDIO):
+            return None
+
         from .data import AudioContent
 
         if isinstance(url_or_task, str):
@@ -254,6 +284,9 @@ class BaseParser:
         alt: str | None = None,
     ):
         """创建图文内容 图片不能为空 文字可空 渲染时文字在前 图片在后"""
+        if not self.allows_media(MediaType.GRAPHICS):
+            return None
+
         from .data import GraphicsContent
 
         image_task = DOWNLOADER.download_img(image_url, ext_headers=self.headers)

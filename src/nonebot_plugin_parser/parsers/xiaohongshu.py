@@ -118,7 +118,8 @@ class XiaoHongShuParser(BaseParser):
         if video_url := note_detail.video_url:
             # 使用第一张图片作为封面
             cover_url = note_detail.image_urls[0] if note_detail.image_urls else None
-            contents.append(self.create_video_content(video_url, cover_url))
+            if video_content := self.create_video_content(video_url, cover_url):
+                contents.append(video_content)
 
         # 添加图片内容
         elif image_urls := note_detail.image_urls:
@@ -200,7 +201,8 @@ class XiaoHongShuParser(BaseParser):
                 img_urls = preload_data.image_urls
             else:
                 img_urls = note_data.image_urls
-            contents.append(self.create_video_content(video_url, img_urls[0]))
+            if video_content := self.create_video_content(video_url, img_urls[0]):
+                contents.append(video_content)
         elif img_urls := note_data.image_urls:
             contents.extend(self.create_image_contents(img_urls))
 

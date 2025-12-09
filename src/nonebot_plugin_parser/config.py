@@ -23,6 +23,12 @@ class RenderType(str, Enum):
     htmlkit = "htmlkit"
 
 
+class MediaMode(str, Enum):
+    all = "all"
+    image_only = "image_only"
+    none = "none"
+
+
 class Config(BaseModel):
     parser_bili_ck: str | None = None
     """bilibili cookies"""
@@ -52,6 +58,8 @@ class Config(BaseModel):
     """B站视频分辨率"""
     parser_render_type: RenderType = RenderType.common
     """Renderer 类型"""
+    parser_media_mode: MediaMode = MediaMode.all
+    """媒体下载模式"""
     parser_custom_font: str | None = None
     """自定义字体"""
     parser_need_forward_contents: bool = True
@@ -110,6 +118,11 @@ class Config(BaseModel):
     def render_type(self) -> RenderType:
         """Renderer 类型"""
         return self.parser_render_type
+
+    @property
+    def media_mode(self) -> MediaMode:
+        """媒体下载模式"""
+        return self.parser_media_mode
 
     @property
     def bili_ck(self) -> str | None:

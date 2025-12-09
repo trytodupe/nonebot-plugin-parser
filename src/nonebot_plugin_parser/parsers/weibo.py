@@ -118,7 +118,8 @@ class WeiBoParser(BaseParser):
                 src = element.get("src")
                 if isinstance(src, str):
                     text = "\n\n".join(text_buffer)
-                    contents.append(self.create_graphics_content(src, text=text))
+                    if graphic := self.create_graphics_content(src, text=text):
+                        contents.append(graphic)
                     text_buffer.clear()
 
         author = self.create_author(
@@ -189,7 +190,8 @@ class WeiBoParser(BaseParser):
             video_url = data.get("stream_url")
 
         if video_url:
-            contents.append(self.create_video_content(video_url, cover_url))
+            if video_content := self.create_video_content(video_url, cover_url):
+                contents.append(video_content)
 
         # 时间戳
         timestamp = data.get("real_date")
@@ -249,7 +251,8 @@ class WeiBoParser(BaseParser):
         # 添加视频内容
         if video_url := data.video_url:
             cover_url = data.cover_url
-            contents.append(self.create_video_content(video_url, cover_url))
+            if video_content := self.create_video_content(video_url, cover_url):
+                contents.append(video_content)
 
         # 添加图片内容
         if image_urls := data.image_urls:

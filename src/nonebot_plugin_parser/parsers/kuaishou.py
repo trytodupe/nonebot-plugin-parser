@@ -58,7 +58,8 @@ class KuaiShouParser(BaseParser):
 
         # 添加视频内容
         if video_url := photo.video_url:
-            contents.append(self.create_video_content(video_url, photo.cover_url, photo.duration))
+            if video_content := self.create_video_content(video_url, photo.cover_url, photo.duration):
+                contents.append(video_content)
 
         # 添加图片内容
         if img_urls := photo.img_urls:

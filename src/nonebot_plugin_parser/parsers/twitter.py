@@ -98,7 +98,8 @@ class TwitterParser(BaseParser):
 
         # 添加视频内容
         if video_url:
-            contents.append(self.create_video_content(video_url, cover_url))
+            if video_content := self.create_video_content(video_url, cover_url):
+                contents.append(video_content)
 
         # 添加图片内容
         if images_urls:
