@@ -77,7 +77,7 @@ class UniHelper:
         if img_path is None:
             raise ValueError("img_path 和 raw 不能都为 None")
 
-        if pconfig.use_base64:
+        if pconfig.image_use_base64 or pconfig.use_base64:
             return Image(raw=img_path.read_bytes())
         else:
             return Image(path=img_path)

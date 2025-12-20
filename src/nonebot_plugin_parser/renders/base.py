@@ -151,7 +151,7 @@ class ImageRenderer(BaseRenderer):
             image_raw = await self.render_image(result)
             image_path = await self.save_img(image_raw)
             result.render_image = image_path
-            if pconfig.use_base64:
+            if pconfig.image_use_base64 or pconfig.use_base64:
                 return UniHelper.img_seg(raw=image_raw)
 
         return UniHelper.img_seg(result.render_image)
