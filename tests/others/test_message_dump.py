@@ -39,7 +39,7 @@ def _dump_onebot11_image_segment(seg, out_dir: Path) -> None:
     )
 
 
-async def test_dump_rendered_card_and_payload(app: App, tmp_path: Path):
+async def test_dump_rendered_card_and_payload(app: App):
     """
     This test doesn't send messages to a real OneBot endpoint.
 
@@ -55,17 +55,33 @@ async def test_dump_rendered_card_and_payload(app: App, tmp_path: Path):
     from nonebot_plugin_parser.parsers.data import Author, ParseResult, Platform
     from nonebot_plugin_alconna.uniseg.segment import Image
 
-    dump_root = Path(os.getenv("PARSER_TEST_DUMP_DIR", str(tmp_path))).resolve()
+    # Default dump location: repo-root `temp/out/`.
+    dump_root = Path(os.getenv("PARSER_TEST_DUMP_DIR", "")).resolve() if os.getenv("PARSER_TEST_DUMP_DIR") else None
+    if dump_root is None:
+        dump_root = Path(__file__).resolve().parents[2] / "temp" / "out"
     dump_root.mkdir(parents=True, exist_ok=True)
 
-    platform = Platform(name="twitter", display_name="Twitter")
+    # Optional config from repo-root `temp/test_config.toml`
+    import tomllib
+
+    cfg_path = Path(__file__).resolve().parents[2] / "temp" / "test_config.toml"
+    platform_name = "twitter"
+    url = "https://example.com/test"
+    if cfg_path.exists():
+        with cfg_path.open("rb") as f:
+            cfg = tomllib.load(f)
+        test_cfg = cfg.get("test", {})
+        platform_name = str(test_cfg.get("platform", platform_name))
+        url = str(test_cfg.get("url", url))
+
+    platform = Platform(name=platform_name, display_name=platform_name)
     result = ParseResult(
         platform=platform,
         author=Author(name="tester"),
         title="test title",
         text="test text",
         timestamp=int(time.time()),
-        url="https://example.com/test",
+        url=url,
     )
     renderer = get_renderer(platform.name)
 
@@ -80,6 +96,7 @@ async def test_dump_rendered_card_and_payload(app: App, tmp_path: Path):
         base64_dir = dump_root / "base64"
         base64_dir.mkdir(parents=True, exist_ok=True)
         (base64_dir / "config.txt").write_text("parser_image_use_base64=true\nparser_use_base64=false\n", "utf-8")
+        (base64_dir / "url.txt").write_text(f"{url}\n", "utf-8")
         assert seg.raw, "expected Image(raw=...) when parser_image_use_base64=true"
         (base64_dir / "card.png").write_bytes(seg.raw_bytes)
         _dump_onebot11_image_segment(seg, base64_dir)
@@ -92,6 +109,7 @@ async def test_dump_rendered_card_and_payload(app: App, tmp_path: Path):
         path_dir = dump_root / "path"
         path_dir.mkdir(parents=True, exist_ok=True)
         (path_dir / "config.txt").write_text("parser_image_use_base64=false\nparser_use_base64=false\n", "utf-8")
+        (path_dir / "url.txt").write_text(f"{url}\n", "utf-8")
         assert seg2.path, "expected Image(path=...) when base64 is disabled"
         shutil.copyfile(Path(seg2.path), path_dir / "card.png")
         _dump_onebot11_image_segment(seg2, path_dir)
@@ -100,4 +118,3 @@ async def test_dump_rendered_card_and_payload(app: App, tmp_path: Path):
         pconfig.parser_use_base64 = old_all_b64
 
     print(f"dumped artifacts to: {dump_root}")
-

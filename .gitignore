@@ -164,3 +164,7 @@ render_result.md
 render_result_html.md
 render_result_combined.md
 .serena/
+
+# test artifacts (keep config)
+temp/*
+!temp/test_config.toml

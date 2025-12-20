@@ -1,0 +1,12 @@
+[nonebot_plugin_parser]
+# If your bot container and OneBot endpoint (NapCat/go-cqhttp/etc.) are separated,
+# enable base64 for images to avoid path-based ENOENT failures.
+parser_image_use_base64 = true
+parser_use_base64 = false
+parser_media_mode = "image_only"
+
+[test]
+# Used by tests that dump "would-send" artifacts.
+platform = "twitter"
+url = "https://x.com/Fortnite/status/1870484479980052921"
+
