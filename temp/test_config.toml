@@ -9,4 +9,3 @@ parser_media_mode = "image_only"
 # Used by tests that dump "would-send" artifacts.
 platform = "twitter"
 url = "https://x.com/Fortnite/status/1870484479980052921"
-

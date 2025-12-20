@@ -51,10 +51,10 @@ def project_temp_config(project_temp_config_path: Path) -> dict:
         return tomllib.load(f)
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(autouse=True)
 def cleanup_project_temp_dir(project_temp_dir: Path, project_temp_config_path: Path):
     """
-    At the start of a test run, clear everything under repo-root `temp/` except the config file.
+    At the start of every test, clear everything under repo-root `temp/` except the config file.
 
     This keeps artifacts from the current run inspectable, and avoids stale files from previous runs.
     """
