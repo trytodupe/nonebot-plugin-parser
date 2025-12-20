@@ -123,6 +123,7 @@ class BilibiliParser(BaseParser):
         author = self.create_author(video_info.owner.name, video_info.owner.face)
         # 处理分 p
         page_info = video_info.extract_info_with_page(page_num)
+        cover_url = page_info.cover or video_info.pic
 
         # 获取 AI 总结
         if self._credential:
@@ -157,10 +158,15 @@ class BilibiliParser(BaseParser):
             video_task = asyncio.create_task(download_video())
             if video_content := self.create_video_content(
                 video_task,
-                page_info.cover,
+                cover_url,
                 page_info.duration,
             ):
                 contents.append(video_content)
+        else:
+            # When video downloading is disabled (e.g. MediaMode.image_only),
+            # still provide a thumbnail so renderers can show a cover.
+            if cover_url:
+                contents.extend(self.create_image_contents([cover_url]))
 
         return self.result(
             url=url,
