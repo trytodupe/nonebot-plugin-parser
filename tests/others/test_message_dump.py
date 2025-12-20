@@ -1,5 +1,4 @@
 import os
-import time
 import shutil
 from pathlib import Path
 
@@ -13,7 +12,7 @@ def _summarize_onebot_file(file_value: str) -> str:
     return file_value
 
 
-def _dump_onebot11_image_segment(seg, out_dir: Path) -> None:
+def _dump_onebot11_image_segment(seg, out_dir: Path) -> str:
     from nonebot.adapters.onebot.v11.message import MessageSegment
 
     if seg.raw:
@@ -26,6 +25,13 @@ def _dump_onebot11_image_segment(seg, out_dir: Path) -> None:
         raise AssertionError("Image segment has no raw/path/url")
 
     file_value = ob.data.get("file", "")
+    payload = "\n".join(
+        [
+            f"cq={str(ob)}",
+            f"file={_summarize_onebot_file(str(file_value))}",
+            f"data={ob.data}",
+        ]
+    )
     (out_dir / "onebot_segment.txt").write_text(
         "\n".join(
             [
@@ -37,21 +43,19 @@ def _dump_onebot11_image_segment(seg, out_dir: Path) -> None:
         + "\n",
         encoding="utf-8",
     )
+    return payload
 
 
 def _apply_test_config_to_pconfig(cfg: dict) -> dict:
     from nonebot_plugin_parser.config import MediaMode, pconfig
 
     old = {
-        "parser_image_use_base64": pconfig.parser_image_use_base64,
         "parser_use_base64": pconfig.parser_use_base64,
         "parser_media_mode": pconfig.parser_media_mode,
     }
 
     plugin_cfg = cfg.get("nonebot_plugin_parser", {})
 
-    if "parser_image_use_base64" in plugin_cfg:
-        pconfig.parser_image_use_base64 = bool(plugin_cfg["parser_image_use_base64"])
     if "parser_use_base64" in plugin_cfg:
         pconfig.parser_use_base64 = bool(plugin_cfg["parser_use_base64"])
     if "parser_media_mode" in plugin_cfg:
@@ -63,7 +67,6 @@ def _apply_test_config_to_pconfig(cfg: dict) -> dict:
 def _restore_pconfig(old: dict) -> None:
     from nonebot_plugin_parser.config import pconfig
 
-    pconfig.parser_image_use_base64 = old["parser_image_use_base64"]
     pconfig.parser_use_base64 = old["parser_use_base64"]
     pconfig.parser_media_mode = old["parser_media_mode"]
 
@@ -126,41 +129,26 @@ async def test_dump_rendered_card_and_payload(app: App):
 
         renderer = get_renderer(result.platform.name)
 
-        # Ensure we have a rendered file on disk once (then we can dump both base64 and path variants)
+        # Render and dump the "would-send" payload according to config
         from nonebot_plugin_parser.config import pconfig
 
-        pconfig.parser_image_use_base64 = False
-        pconfig.parser_use_base64 = False
-        seg_path = await renderer.cache_or_render_image(result)  # type: ignore[attr-defined]
-        assert isinstance(seg_path, Image)
-        assert seg_path.path, "expected Image(path=...) when base64 is disabled"
-
-        # Dump path variant
-        path_dir = dump_root / "path"
-        path_dir.mkdir(parents=True, exist_ok=True)
-        (path_dir / "config.txt").write_text(
-            f"parser_image_use_base64={pconfig.parser_image_use_base64}\nparser_use_base64={pconfig.parser_use_base64}\n",
-            "utf-8",
-        )
-        (path_dir / "url.txt").write_text(f"{url}\n", "utf-8")
-        shutil.copyfile(Path(seg_path.path), path_dir / "card.png")
-        _dump_onebot11_image_segment(seg_path, path_dir)
-
-        # Dump base64 variant (recommended for split containers)
-        pconfig.parser_image_use_base64 = True
-        pconfig.parser_use_base64 = False
         seg = await renderer.cache_or_render_image(result)  # type: ignore[attr-defined]
         assert isinstance(seg, Image)
-        base64_dir = dump_root / "base64"
-        base64_dir.mkdir(parents=True, exist_ok=True)
-        (base64_dir / "config.txt").write_text(
-            f"parser_image_use_base64={pconfig.parser_image_use_base64}\nparser_use_base64={pconfig.parser_use_base64}\n",
+
+        (dump_root / "url.txt").write_text(f"{url}\n", "utf-8")
+        (dump_root / "config.txt").write_text(
+            f"parser_use_base64={pconfig.parser_use_base64}\nparser_media_mode={pconfig.parser_media_mode}\n",
             "utf-8",
         )
-        (base64_dir / "url.txt").write_text(f"{url}\n", "utf-8")
-        assert seg.raw, "expected Image(raw=...) when parser_image_use_base64=true"
-        (base64_dir / "card.png").write_bytes(seg.raw_bytes)
-        _dump_onebot11_image_segment(seg, base64_dir)
+
+        if seg.raw:
+            (dump_root / "card.png").write_bytes(seg.raw_bytes)
+        elif seg.path:
+            shutil.copyfile(Path(seg.path), dump_root / "card.png")
+        else:
+            raise AssertionError("expected Image(raw=...) or Image(path=...)")
+
+        _dump_onebot11_image_segment(seg, dump_root)
     finally:
         _restore_pconfig(old)
 

@@ -1,8 +1,7 @@
 [nonebot_plugin_parser]
 # If your bot container and OneBot endpoint (NapCat/go-cqhttp/etc.) are separated,
-# enable base64 for images to avoid path-based ENOENT failures.
-parser_image_use_base64 = true
-parser_use_base64 = false
+# enable base64 to avoid path-based ENOENT failures.
+parser_use_base64 = true
 parser_media_mode = "image_only"
 
 [test]
