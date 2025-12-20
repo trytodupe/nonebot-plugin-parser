@@ -134,7 +134,9 @@ class ImageRenderer(BaseRenderer):
             msg += "\n".join(url for url in urls if url)
         yield msg
 
-        # 媒体内容
+        # 媒体内容（可配置为仅发送卡片）
+        if pconfig.card_only:
+            return
         async for message in self.render_contents(result):
             yield message
 
