@@ -33,8 +33,6 @@ class Config(BaseModel):
     """是否需要上传音频文件"""
     parser_use_base64: bool = False
     """是否使用 base64 编码发送图片，音频，视频"""
-    parser_image_use_base64: bool = False
-    """是否使用 base64 编码发送图片（仅图片）"""
     parser_max_size: int = 90
     """资源最大大小 默认 100 单位 MB"""
     parser_duration_maximum: int = 480
@@ -143,11 +141,6 @@ class Config(BaseModel):
     def use_base64(self) -> bool:
         """是否使用 base64 编码发送图片，音频，视频"""
         return self.parser_use_base64
-
-    @property
-    def image_use_base64(self) -> bool:
-        """是否使用 base64 编码发送图片（仅图片）"""
-        return self.parser_image_use_base64
 
     @property
     def append_url(self) -> bool:
