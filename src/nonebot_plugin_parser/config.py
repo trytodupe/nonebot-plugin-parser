@@ -6,7 +6,7 @@ from apilmoji import ELK_SH_CDN, EmojiStyle
 from pydantic import BaseModel
 from bilibili_api.video import VideoCodecs, VideoQuality
 
-from .constants import PlatformEnum
+from .constants import RenderType, PlatformEnum
 
 require("nonebot_plugin_localstore")
 import nonebot_plugin_localstore as _store
@@ -14,12 +14,6 @@ import nonebot_plugin_localstore as _store
 _cache_dir: Path = _store.get_plugin_cache_dir()
 _config_dir: Path = _store.get_plugin_config_dir()
 _data_dir: Path = _store.get_plugin_data_dir()
-
-
-class RenderType(str, Enum):
-    default = "default"
-    common = "common"
-    htmlkit = "htmlkit"
 
 
 class MediaMode(str, Enum):
