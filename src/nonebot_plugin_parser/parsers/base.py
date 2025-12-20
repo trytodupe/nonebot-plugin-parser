@@ -1,5 +1,7 @@
 """Parser 基类定义"""
 
+from __future__ import annotations
+
 from re import Match, Pattern, compile
 from abc import ABC
 from enum import Enum
@@ -144,6 +146,11 @@ class BaseParser:
     @classmethod
     def result(cls, **kwargs: Unpack[ParseResultKwargs]) -> ParseResult:
         """构建解析结果"""
+        # Some media constructors may return None under certain configs (e.g. MediaMode),
+        # but downstream expects `ParseResult.contents` to only contain MediaContent.
+        contents = kwargs.get("contents")
+        if contents is not None:
+            kwargs["contents"] = [cont for cont in contents if cont is not None]
         return ParseResult(platform=cls.platform, **kwargs)
 
     def allows_media(self, media_type: MediaType) -> bool:

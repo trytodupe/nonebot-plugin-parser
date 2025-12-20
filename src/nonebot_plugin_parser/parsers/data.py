@@ -230,13 +230,16 @@ class ParseResult:
 
 
 from typing import Any, TypedDict
+from collections.abc import Sequence
 from dataclasses import field, dataclass
 
 
 class ParseResultKwargs(TypedDict, total=False):
     title: str | None
     text: str | None
-    contents: list[MediaContent]
+    # Some helper constructors may return None depending on config (e.g. MediaMode),
+    # callers may pass those directly into `BaseParser.result(...)`.
+    contents: Sequence[MediaContent | None]
     timestamp: int | None
     url: str | None
     author: Author | None
