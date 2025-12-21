@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ result.title or "Bilibili" }}</title>
+    <style>
+      :root {
+        --bg: #f5f7fb;
+        --card: #ffffff;
+        --text: #111827;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --brand: #fb7299;
+        --radius: 18px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 40px;
+        width: 800px;
+        background: var(--bg);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", Arial, sans-serif;
+        color: var(--text);
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--border);
+      }
+      .avatar {
+        width: 54px;
+        height: 54px;
+        border-radius: 999px;
+        object-fit: cover;
+        background: #eef2ff;
+        flex: 0 0 auto;
+      }
+      .who {
+        min-width: 0;
+        flex: 1 1 auto;
+      }
+      .name {
+        font-size: 18px;
+        font-weight: 750;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .meta {
+        margin-top: 4px;
+        font-size: 13px;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(251, 114, 153, 0.12);
+        color: var(--brand);
+        font-weight: 700;
+      }
+      .logo {
+        width: 24px;
+        height: 24px;
+        flex: 0 0 auto;
+        opacity: 0.95;
+      }
+      .content { padding: 22px; }
+      .title {
+        font-size: 22px;
+        line-height: 1.35;
+        font-weight: 820;
+        letter-spacing: -0.02em;
+      }
+      .text {
+        margin-top: 14px;
+        font-size: 16px;
+        line-height: 1.75;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .media { margin-top: 18px; }
+      .cover {
+        width: 100%;
+        border-radius: 14px;
+        border: 1px solid rgba(0,0,0,0.06);
+        overflow: hidden;
+        background: #f3f4f6;
+      }
+      .cover img { width: 100%; height: auto; display: block; }
+
+      .grid {
+        margin-top: 12px;
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+      .grid.cols-1 { grid-template-columns: 1fr; }
+      .grid .item {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.06);
+        background: #f3f4f6;
+        position: relative;
+        padding-bottom: 100%;
+      }
+      .grid .item img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .graphics {
+        margin-top: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .g-item {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .g-text {
+        padding: 14px 16px;
+        font-size: 15px;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .g-img { background: #f3f4f6; }
+      .g-img img { width: 100%; height: auto; display: block; }
+      .g-alt {
+        padding: 10px 16px 14px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .footer {
+        padding: 14px 22px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .pill {
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #f3f4f6;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="header">
+        {% if result.author and result.author.avatar %}
+        <img class="avatar" src="{{ result.author.avatar }}" alt="avatar" />
+        {% else %}
+        <div class="avatar"></div>
+        {% endif %}
+
+        <div class="who">
+          <div class="name">{{ result.author.name if result.author else "哔哩哔哩用户" }}</div>
+          <div class="meta">
+            <span class="badge">
+              {% if result.platform and result.platform.logo %}
+              <img class="logo" src="{{ result.platform.logo }}" alt="bilibili" />
+              {% endif %}
+              {{ result.platform.display_name if result.platform else "哔哩哔哩" }}
+            </span>
+            {% if result.formatted_datetime %}
+            <span>{{ result.formatted_datetime }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        {% if result.title %}
+        <div class="title">{{ result.title }}</div>
+        {% endif %}
+
+        {% if result.text %}
+        <div class="text">{{ result.text }}</div>
+        {% endif %}
+
+        {% if result.cover or (result.images and result.images|length > 0) or (result.graphics and result.graphics|length > 0) %}
+        <div class="media">
+          {% if result.cover %}
+          <div class="cover">
+            <img src="{{ result.cover }}" alt="cover" />
+          </div>
+          {% endif %}
+
+          {% if result.images and result.images|length > 0 %}
+          {% set count = result.images|length %}
+          {% set cols = 3 %}
+          {% if count == 1 %}
+          {% set cols = 1 %}
+          {% elif count == 2 or count == 4 %}
+          {% set cols = 2 %}
+          {% endif %}
+          <div class="grid cols-{{ cols }}">
+            {% for img in result.images[:9] %}
+            <div class="item">
+              <img src="{{ img }}" alt="image" />
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          {% if result.graphics and result.graphics|length > 0 %}
+          <div class="graphics">
+            {% for g in result.graphics %}
+            <div class="g-item">
+              {% if g.text %}
+              <div class="g-text">{{ g.text }}</div>
+              {% endif %}
+              <div class="g-img"><img src="{{ g.path }}" alt="graphics" /></div>
+              {% if g.alt %}
+              <div class="g-alt">{{ g.alt }}</div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+
+      {% if result.extra_info %}
+      <div class="footer">
+        <span class="pill">{{ result.extra_info }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </body>
+</html>
+

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ "X / Twitter" }}</title>
+    <style>
+      :root {
+        --bg: #0b1220;
+        --card: rgba(255, 255, 255, 0.95);
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: rgba(15, 23, 42, 0.08);
+        --brand: #111827;
+        --radius: 18px;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 40px;
+        width: 800px;
+        background: radial-gradient(800px 600px at 20% 0%, #1d4ed8 0%, transparent 55%),
+          radial-gradient(700px 600px at 100% 30%, #0ea5e9 0%, transparent 55%),
+          radial-gradient(900px 700px at 50% 100%, #a78bfa 0%, transparent 55%),
+          var(--bg);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", Arial, sans-serif;
+        color: var(--text);
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(10px);
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--border);
+      }
+      .avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 999px;
+        object-fit: cover;
+        background: #e2e8f0;
+        flex: 0 0 auto;
+      }
+      .who {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .name {
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .meta {
+        margin-top: 4px;
+        font-size: 13px;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .logo {
+        width: 18px;
+        height: 18px;
+        opacity: 0.9;
+      }
+      .content { padding: 22px; }
+      .text {
+        font-size: 16px;
+        line-height: 1.75;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .media { margin-top: 16px; }
+      .grid {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+      .grid.cols-1 { grid-template-columns: 1fr; }
+      .item {
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.08);
+        background: #f1f5f9;
+        position: relative;
+        padding-bottom: 100%;
+      }
+      .item img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .footer {
+        padding: 14px 22px;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 12px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .pill {
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #f1f5f9;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="header">
+        {% if result.author and result.author.avatar %}
+        <img class="avatar" src="{{ result.author.avatar }}" alt="avatar" />
+        {% else %}
+        <div class="avatar"></div>
+        {% endif %}
+
+        <div class="who">
+          <div class="name">{{ result.author.name if result.author else "X 用户" }}</div>
+          <div class="meta">
+            {% if result.platform and result.platform.logo %}
+            <img class="logo" src="{{ result.platform.logo }}" alt="x" />
+            {% endif %}
+            <span>{{ result.platform.display_name if result.platform else "X" }}</span>
+            {% if result.formatted_datetime %}
+            <span>· {{ result.formatted_datetime }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        {% if result.text %}
+        <div class="text">{{ result.text }}</div>
+        {% endif %}
+
+        {% if result.images and result.images|length > 0 %}
+        <div class="media">
+          {% set count = result.images|length %}
+          {% set cols = 3 %}
+          {% if count == 1 %}
+          {% set cols = 1 %}
+          {% elif count == 2 or count == 4 %}
+          {% set cols = 2 %}
+          {% endif %}
+          <div class="grid cols-{{ cols }}">
+            {% for img in result.images[:9] %}
+            <div class="item"><img src="{{ img }}" alt="image" /></div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if result.extra_info %}
+      <div class="footer">
+        <span class="pill">{{ result.extra_info }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </body>
+</html>
+
