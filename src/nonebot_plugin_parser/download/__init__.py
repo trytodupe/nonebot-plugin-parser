@@ -2,7 +2,7 @@ import asyncio
 from pathlib import Path
 
 import aiofiles
-from httpx import HTTPError, AsyncClient
+from httpx import HTTPError, HTTPStatusError, AsyncClient
 from nonebot import logger
 from tqdm.asyncio import tqdm
 
@@ -72,6 +72,39 @@ class StreamDownloader:
                             await file.write(chunk)
                             bar.update(len(chunk))
 
+        except HTTPStatusError as e:
+            # Some hosts (e.g. img.nga.178.com) deny httpx's TLS fingerprint and return non-standard
+            # status codes like 567 (AccessDeny), while curl/curl_cffi can still fetch the resource.
+            status = e.response.status_code if e.response is not None else None
+            if status in {403, 567} and url.startswith("https://img.nga.178.com/"):
+                try:
+                    from curl_cffi.requests import AsyncSession
+
+                    async with AsyncSession() as session:
+                        r = await session.get(
+                            url,
+                            headers=headers,
+                            impersonate="chrome120",
+                            allow_redirects=True,
+                        )
+                    if r.status_code >= 400:
+                        raise DownloadException(f"媒体下载失败 (curl_cffi status={r.status_code})")
+                    data = r.content
+                    if not data:
+                        raise ZeroSizeException
+                    if (file_size := len(data) / 1024 / 1024) > pconfig.max_size:
+                        raise SizeLimitException
+                    async with aiofiles.open(file_path, "wb") as file:
+                        await file.write(data)
+                    return file_path
+                except Exception:
+                    await safe_unlink(file_path)
+                    logger.exception(f"下载失败 | url: {url}, file_path: {file_path}")
+                    raise DownloadException("媒体下载失败")
+
+            await safe_unlink(file_path)
+            logger.exception(f"下载失败 | url: {url}, file_path: {file_path}")
+            raise DownloadException("媒体下载失败")
         except HTTPError:
             await safe_unlink(file_path)
             logger.exception(f"下载失败 | url: {url}, file_path: {file_path}")

@@ -27,6 +27,35 @@ class TwitterParser(BaseParser):
             response = await client.post(url, data=data)
             return response.json()
 
+    async def _req_oembed(self, url: str) -> dict[str, Any] | None:
+        """Fetch tweet metadata via Twitter/X oEmbed (no auth)."""
+        headers = {
+            "Accept": "application/json",
+            "Referer": "https://publish.twitter.com/",
+            **self.headers,
+        }
+        params = {"url": url}
+        async with AsyncClient(headers=headers, timeout=self.timeout) as client:
+            resp = await client.get("https://publish.twitter.com/oembed", params=params)
+            if resp.status_code != 200:
+                return None
+            try:
+                return resp.json()
+            except Exception:
+                return None
+
+    @staticmethod
+    def _extract_oembed_text(oembed_html: str) -> str | None:
+        """Extract tweet text from oEmbed HTML blockquote."""
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(oembed_html, "html.parser")
+        p = soup.find("p")
+        if not p:
+            return None
+        text = p.get_text(" ", strip=True)
+        return text or None
+
     @handle("x.com", r"https?://x.com/[0-9-a-zA-Z_]{1,20}/status/([0-9]+)")
     async def _parse(self, searched: re.Match[str]) -> ParseResult:
         # 从匹配对象中获取原始URL
@@ -40,7 +69,34 @@ class TwitterParser(BaseParser):
         if html_content is None:
             raise ParseException("解析失败, 数据为空")
 
-        return self.parse_twitter_html(html_content)
+        result = self.parse_twitter_html(html_content)
+        result.url = url
+
+        # Enrich author/text via oEmbed (xdown HTML only provides media download info).
+        try:
+            if oembed := await self._req_oembed(url):
+                author_name = str(oembed.get("author_name") or "").strip() or None
+                author_url = str(oembed.get("author_url") or "").strip() or None
+                screen_name = author_url.rsplit("/", 1)[-1] if author_url and "/" in author_url else None
+                if screen_name:
+                    display = author_name or screen_name
+                    author_display = display if display.lower() == screen_name.lower() else f"{display} (@{screen_name})"
+                    result.author = self.create_author(author_display)
+                elif author_name:
+                    result.author = self.create_author(author_name)
+
+                if not result.text and (oembed_html := oembed.get("html")):
+                    text = self._extract_oembed_text(str(oembed_html))
+                    if text:
+                        result.text = text
+
+                if not result.title:
+                    result.title = author_name or screen_name
+        except Exception:
+            # Best-effort; keep media results even if oEmbed is unavailable.
+            pass
+
+        return result
 
     def parse_twitter_html(self, html_content: str) -> ParseResult:
         """解析 Twitter HTML 内容
@@ -111,7 +167,7 @@ class TwitterParser(BaseParser):
 
         return self.result(
             title=title,
-            author=self.create_author("无用户名"),
+            author=None,
             contents=contents,
         )
         # # 4. 提取Twitter ID
