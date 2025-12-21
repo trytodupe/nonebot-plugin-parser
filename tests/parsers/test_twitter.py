@@ -49,6 +49,9 @@ async def test_img():
         logger.info(f"{url} | 开始解析推特图片")
         result = await parser.parse(keyword, searched)
         logger.debug(f"{url} | 解析结果: \n{result}")
+        assert result.author is not None, "作者信息为空"
+        avatar_path = await result.author.get_avatar_path()
+        assert avatar_path is not None and avatar_path.exists(), "作者头像不存在"
         img_contents = result.img_contents
         assert img_contents, "图片内容为空"
         for img_content in img_contents:

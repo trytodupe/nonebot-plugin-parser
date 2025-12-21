@@ -45,6 +45,12 @@ class TwitterParser(BaseParser):
                 return None
 
     @staticmethod
+    def _build_avatar_url(screen_name: str) -> str:
+        # Unavatar provides a stable, auth-free avatar proxy for many platforms.
+        # /twitter/<name> redirects to /x/<name>; use /x/ directly.
+        return f"https://unavatar.io/x/{screen_name}"
+
+    @staticmethod
     def _extract_oembed_text(oembed_html: str) -> str | None:
         """Extract tweet text from oEmbed HTML blockquote."""
         from bs4 import BeautifulSoup
@@ -81,7 +87,7 @@ class TwitterParser(BaseParser):
                 if screen_name:
                     display = author_name or screen_name
                     author_display = display if display.lower() == screen_name.lower() else f"{display} (@{screen_name})"
-                    result.author = self.create_author(author_display)
+                    result.author = self.create_author(author_display, avatar_url=self._build_avatar_url(screen_name))
                 elif author_name:
                     result.author = self.create_author(author_name)
 
