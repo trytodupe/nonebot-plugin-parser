@@ -15,6 +15,7 @@ def _apply_test_config_to_pconfig(cfg: dict) -> dict:
         "parser_media_mode": pconfig.parser_media_mode,
         "parser_render_type": pconfig.parser_render_type,
         "parser_custom_font": pconfig.parser_custom_font,
+        "parser_only_send_card": pconfig.parser_only_send_card,
     }
 
     plugin_cfg = cfg.get("nonebot_plugin_parser", {})
@@ -27,6 +28,8 @@ def _apply_test_config_to_pconfig(cfg: dict) -> dict:
         pconfig.parser_render_type = RenderType(str(plugin_cfg["parser_render_type"]))
     if "parser_custom_font" in plugin_cfg:
         pconfig.parser_custom_font = str(plugin_cfg["parser_custom_font"])
+    if "parser_only_send_card" in plugin_cfg:
+        pconfig.parser_only_send_card = bool(plugin_cfg["parser_only_send_card"])
 
     return old
 
@@ -38,6 +41,7 @@ def _restore_pconfig(old: dict) -> None:
     pconfig.parser_media_mode = old["parser_media_mode"]
     pconfig.parser_render_type = old["parser_render_type"]
     pconfig.parser_custom_font = old["parser_custom_font"]
+    pconfig.parser_only_send_card = old["parser_only_send_card"]
 
 
 def _ensure_custom_font_available(cfg: dict) -> None:

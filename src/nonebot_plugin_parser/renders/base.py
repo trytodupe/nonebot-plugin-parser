@@ -48,6 +48,9 @@ class BaseRenderer(ABC):
         Returns:
             AsyncGenerator[UniMessage[Any], None]: 消息生成器
         """
+        if pconfig.only_send_card:
+            return
+
         failed_count = 0
         forwardable_segs: list[ForwardNodeInner] = []
         dynamic_segs: list[ForwardNodeInner] = []

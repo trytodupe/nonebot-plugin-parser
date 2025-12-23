@@ -35,6 +35,8 @@ class Config(BaseModel):
     """是否使用 base64 编码发送图片，音频，视频"""
     parser_card_only: bool = False
     """是否仅发送卡片（仅对图片渲染器生效）"""
+    parser_only_send_card: bool = False
+    """是否仅发送首条卡片消息（所有渲染器生效，不发送任何原始媒体内容）"""
     parser_max_size: int = 90
     """资源最大大小 默认 100 单位 MB"""
     parser_duration_maximum: int = 480
@@ -148,6 +150,11 @@ class Config(BaseModel):
     def card_only(self) -> bool:
         """是否仅发送卡片（仅对图片渲染器生效）"""
         return self.parser_card_only
+
+    @property
+    def only_send_card(self) -> bool:
+        """是否仅发送首条卡片消息（所有渲染器生效）"""
+        return self.parser_only_send_card
 
     @property
     def append_url(self) -> bool:

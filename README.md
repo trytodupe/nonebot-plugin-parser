@@ -246,6 +246,9 @@ parser_custom_font="LXGWZhenKaiGB-Regular.ttf"
 # [可选] 是否需要转发媒体内容(超过 4 项时始终使用合并转发)
 parser_need_forward_contents=True
 
+# [可选] 仅发送首条卡片消息（不发送任何原始媒体内容；所有渲染器生效）
+parser_only_send_card=False
+
 # [可选] emoji 渲染 CDN
 # 例如 ELK_SH_CDN = "https://emojicdn.elk.sh", MQRIO_DEV_CDN = "https://emoji-cdn.mqrio.dev"
 parser_emoji_cdn="https://emojicdn.elk.sh"
