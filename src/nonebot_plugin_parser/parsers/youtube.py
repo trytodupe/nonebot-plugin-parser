@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from typing import ClassVar
 
 import msgspec
@@ -9,19 +10,52 @@ from .cookie import save_cookies_with_netscape
 from ..download import YTDLP_DOWNLOADER
 
 
+def detect_youtube_cookiefile() -> Path | None:
+    """Detect an existing YouTube cookiefile from plugin data/config dirs.
+
+    This is mainly for users who deploy with a mounted data directory and prefer
+    dropping a Netscape-format cookies file instead of configuring `parser_ytb_ck`.
+
+    Priority (first match wins):
+    - data_dir/ytb_cookies.txt
+    - data_dir/cookies.txt
+    - config_dir/ytb_cookies.txt (backward compatibility)
+    """
+    candidates = (
+        pconfig.data_dir / "ytb_cookies.txt",
+        pconfig.data_dir / "cookies.txt",
+        pconfig.config_dir / "ytb_cookies.txt",
+    )
+    for path in candidates:
+        try:
+            if path.is_file() and path.stat().st_size > 0:
+                return path
+        except OSError:
+            continue
+    return None
+
+
 class YouTubeParser(BaseParser):
     # 平台信息
     platform: ClassVar[Platform] = Platform(name=PlatformEnum.YOUTUBE, display_name="油管")
 
     def __init__(self):
         super().__init__()
-        self.cookies_file = pconfig.config_dir / "ytb_cookies.txt"
+        self.cookies_file: Path | None = None
+
+        # Option 1: Cookie header string configured via env/config.
+        # We'll convert it to a Netscape cookiefile for yt-dlp.
         if pconfig.ytb_ck:
+            self.cookies_file = pconfig.config_dir / "ytb_cookies.txt"
             save_cookies_with_netscape(
                 pconfig.ytb_ck,
                 self.cookies_file,
                 "youtube.com",
             )
+            return
+
+        # Option 2: User-provided cookiefile placed under plugin data dir.
+        self.cookies_file = detect_youtube_cookiefile()
 
     @handle("youtu.be", r"https?://(?:www\.)?youtu\.be/[A-Za-z\d\._\?%&\+\-=/#]+")
     @handle(

@@ -202,6 +202,10 @@ parser_bili_video_codes='["avc", "av01", "hev"]'
 parser_bili_video_quality=80
 
 # [可选] Youtube Cookie, Youtube 视频因人机检测下载失败，需填
+# 方式 1：配置 `parser_ytb_ck`（Cookie 请求头字符串）
+# 方式 2：将 Netscape 格式 cookies 文件放到插件数据目录（localstore data dir）下：
+#   - `nonebot_plugin_parser/ytb_cookies.txt`（推荐）
+#   - 或 `nonebot_plugin_parser/cookies.txt`
 parser_ytb_ck=""
 
 # [可选] 代理, 仅作用于 youtube, tiktok 解析
