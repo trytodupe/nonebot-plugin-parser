@@ -7,12 +7,12 @@ parser_media_mode = "image_only"
 parser_render_type = "common"
 # Optional: custom font file name under plugin data dir (e.g. `./data/nonebot_plugin_parser/`).
 # The dump test will also copy from `src/nonebot_plugin_parser/renders/resources/` if present.
-# parser_custom_font = "MonuTitl-0.96Cond.ttf"
+parser_custom_font = "MonuTitl-0.96Cond.ttf"
 
 [test]
 # Used by tests that dump rendered card images.
 # Prefer `urls = [...]` for multiple samples. `url = ...` is kept as a fallback.
 # Or set `urls_from_test_urls_md = true` to load from `tests/others/test_urls.md` (and use `urls_limit` to cap count).
-urls = ["https://x.com/fortnitegame/status/1870484479980052921?s=46", "https://x.com/fortnitegame/status/1864640869900668940?s=46", "https://nga.178.com/read.php?tid=45263995"]
+urls = ["https://x.com/maruko00o/status/2003033639463109005?s=20", "https://t.bilibili.com/1149513637093703701"]
 # urls_from_test_urls_md = true
 # urls_limit = 99
