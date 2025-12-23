@@ -43,3 +43,11 @@ def test_common_wrap_text_replaces_missing_glyphs():
     assert len(combined) == 2
     assert combined.strip() != ""
 
+
+def test_common_wrap_text_does_not_replace_emoji():
+    from nonebot_plugin_parser.renders.common import CommonRenderer
+
+    renderer = CommonRenderer()
+    font = renderer.fontset.text
+    lines = renderer._wrap_text("🍡", 9999, font)  # pyright: ignore[reportPrivateUsage]
+    assert "".join(lines) == "🍡"

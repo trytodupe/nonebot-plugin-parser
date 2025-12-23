@@ -968,21 +968,21 @@ class CommonRenderer(ImageRenderer):
         text_y = text_start_y
 
         # 发布者名称（蓝色）
-        text_y += self.text_single_line(
+        text_y += await self.text(
             ctx,
             (text_x, text_y),
-            section.name,
-            font=self.fontset.name,
+            [section.name],
+            self.fontset.name,
         )
 
         # 时间（灰色）
         if section.time:
             text_y += self.NAME_TIME_GAP
-            text_y += self.text_single_line(
+            text_y += await self.text(
                 ctx,
                 (text_x, text_y),
-                section.time,
-                font=self.fontset.extra,
+                [section.time],
+                self.fontset.extra,
             )
 
         # 在右侧绘制平台 logo（仅在非转发内容时绘制）
@@ -1298,7 +1298,7 @@ class CommonRenderer(ImageRenderer):
                     # 处理普通字符
                     char = paragraph[idx]
                     idx += 1
-                    if len(char) == 1 and not font_info.has_glyph(char):
+                    if len(char) == 1 and (not emoji.is_emoji(char)) and not font_info.has_glyph(char):
                         # Avoid "invisible tofu" by using a visible placeholder.
                         # Users can supply a better font via `parser_custom_font`.
                         char = "□"
@@ -1340,7 +1340,13 @@ class CommonRenderer(ImageRenderer):
             return text
         out: list[str] = []
         for ch in text:
-            if len(ch) == 1 and not ch.isspace() and not _uc_category(ch).startswith("C") and not font_info.has_glyph(ch):
+            if (
+                len(ch) == 1
+                and (not emoji.is_emoji(ch))
+                and (not ch.isspace())
+                and (not _uc_category(ch).startswith("C"))
+                and (not font_info.has_glyph(ch))
+            ):
                 out.append("□")
             else:
                 out.append(ch)
