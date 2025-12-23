@@ -14,6 +14,7 @@ def _apply_test_config_to_pconfig(cfg: dict) -> dict:
         "parser_use_base64": pconfig.parser_use_base64,
         "parser_media_mode": pconfig.parser_media_mode,
         "parser_render_type": pconfig.parser_render_type,
+        "parser_custom_font": pconfig.parser_custom_font,
     }
 
     plugin_cfg = cfg.get("nonebot_plugin_parser", {})
@@ -24,6 +25,8 @@ def _apply_test_config_to_pconfig(cfg: dict) -> dict:
         pconfig.parser_media_mode = MediaMode(str(plugin_cfg["parser_media_mode"]))
     if "parser_render_type" in plugin_cfg:
         pconfig.parser_render_type = RenderType(str(plugin_cfg["parser_render_type"]))
+    if "parser_custom_font" in plugin_cfg:
+        pconfig.parser_custom_font = str(plugin_cfg["parser_custom_font"])
 
     return old
 
@@ -34,6 +37,40 @@ def _restore_pconfig(old: dict) -> None:
     pconfig.parser_use_base64 = old["parser_use_base64"]
     pconfig.parser_media_mode = old["parser_media_mode"]
     pconfig.parser_render_type = old["parser_render_type"]
+    pconfig.parser_custom_font = old["parser_custom_font"]
+
+
+def _ensure_custom_font_available(cfg: dict) -> None:
+    """If `parser_custom_font` is set, make sure the file exists under plugin data dir.
+
+    `common` renderer loads font from localstore data dir, not from system fontconfig.
+    For local testing convenience, if the font exists in `renders/resources/`, copy it to the data dir.
+    """
+    from nonebot_plugin_parser.config import pconfig
+
+    plugin_cfg = cfg.get("nonebot_plugin_parser", {})
+    font_name = plugin_cfg.get("parser_custom_font")
+    if not font_name:
+        return
+
+    font_name = str(font_name)
+    target = pconfig.data_dir / font_name
+    if target.exists():
+        return
+
+    repo_root = Path(__file__).resolve().parents[2]
+    src = repo_root / "src" / "nonebot_plugin_parser" / "renders" / "resources" / font_name
+    if not src.exists():
+        return
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(src, target)
+
+
+def _reload_common_fonts() -> None:
+    from nonebot_plugin_parser.renders.common import CommonRenderer
+
+    CommonRenderer._load_fonts()  # pyright: ignore[reportPrivateUsage]
 
 
 async def _parse_url(url: str):
@@ -93,6 +130,9 @@ async def test_dump_rendered_card_and_payload(app: App):
     try:
         import importlib
 
+        _ensure_custom_font_available(cfg)
+        _reload_common_fonts()
+
         from nonebot_plugin_parser import renders as renders_module
 
         # Ensure renderer selection matches updated pconfig (the module computes a global renderer on import).
@@ -137,6 +177,7 @@ async def test_dump_rendered_card_and_payload(app: App):
             rendered_files.append(out_path)
     finally:
         _restore_pconfig(old)
+        _reload_common_fonts()
 
     if rendered_files:
         print(f"dumped {len(rendered_files)} card(s) to: {dump_root}")
