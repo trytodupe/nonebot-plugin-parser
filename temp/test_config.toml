@@ -13,6 +13,6 @@ parser_custom_font = "MonuTitl-0.96Cond.ttf"
 # Used by tests that dump rendered card images.
 # Prefer `urls = [...]` for multiple samples. `url = ...` is kept as a fallback.
 # Or set `urls_from_test_urls_md = true` to load from `tests/others/test_urls.md` (and use `urls_limit` to cap count).
-urls = ["https://x.com/maruko00o/status/2003033639463109005?s=20", "https://t.bilibili.com/1149513637093703701"]
+urls = ["https://www.bilibili.com/opus/1149429258142089240"]
 # urls_from_test_urls_md = true
 # urls_limit = 99
