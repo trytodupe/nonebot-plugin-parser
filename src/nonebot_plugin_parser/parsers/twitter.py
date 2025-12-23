@@ -97,7 +97,9 @@ class TwitterParser(BaseParser):
                         result.text = text
 
                 if not result.title:
-                    result.title = author_name or screen_name
+                    # Keep title empty by default to avoid duplicating author name in card renderers
+                    # (author is already rendered in the header).
+                    pass
         except Exception:
             # Best-effort; keep media results even if oEmbed is unavailable.
             pass

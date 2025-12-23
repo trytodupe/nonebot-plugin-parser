@@ -4,6 +4,7 @@ from pathlib import Path
 from functools import wraps, lru_cache
 from dataclasses import dataclass
 from collections.abc import Callable, Awaitable
+from unicodedata import category as _uc_category
 from typing_extensions import override
 
 import emoji
@@ -79,6 +80,23 @@ class FontInfo:
     def get_char_width(self, char: str) -> int:
         """获取字符宽度，使用缓存优化"""
         return int(self.font.getlength(char, direction="ltr"))
+
+    @lru_cache(maxsize=4000)
+    def has_glyph(self, char: str) -> bool:
+        """Best-effort check whether current font can render the glyph.
+
+        Whitespace/control characters are treated as supported.
+        """
+        if not char:
+            return True
+        if char.isspace():
+            return True
+        if _uc_category(char).startswith("C"):
+            return True
+        try:
+            return self.font.getmask(char).getbbox() is not None
+        except Exception:
+            return True
 
     def get_char_width_fast(self, char: str) -> int:
         """快速获取单个字符宽度"""
@@ -535,6 +553,10 @@ class CommonRenderer(ImageRenderer):
     async def _calculate_sections(self, result: ParseResult, content_width: int) -> list[SectionData]:
         """计算各部分内容的高度和数据"""
         sections: list[SectionData] = []
+        platform_name = getattr(result.platform, "name", "")
+        prefer_text_first = platform_name in {"twitter", "bilibili"}
+        has_media = bool(result.img_contents) or bool(result.graphics_contents) or bool(await result.cover_path)
+        text_inserted = False
 
         # 1. Header 部分
         header_section = await self._calculate_header_section(result)
@@ -551,7 +573,18 @@ class CommonRenderer(ImageRenderer):
             title_height = len(title_lines) * self.fontset.title.line_height
             sections.append(TitleSectionData(height=title_height, lines=title_lines))
 
-        # 3. 封面，图集，图文内容
+        # 3. 文本内容（twitter / bilibili 动态：先文后图更符合阅读习惯）
+        if prefer_text_first and has_media and result.text:
+            text_lines = self._wrap_text(
+                result.text,
+                content_width,
+                self.fontset.text,
+            )
+            text_height = len(text_lines) * self.fontset.text.line_height
+            sections.append(TextSectionData(height=text_height, lines=text_lines))
+            text_inserted = True
+
+        # 4. 封面，图集，图文内容
         if cover_img := self._load_and_resize_cover(
             await result.cover_path,
             content_width=content_width,
@@ -575,7 +608,7 @@ class CommonRenderer(ImageRenderer):
                     sections.append(graphics_section)
 
         # 5. 文本内容
-        if result.text:
+        if (not text_inserted) and result.text:
             text_lines = self._wrap_text(
                 result.text,
                 content_width,
@@ -667,7 +700,7 @@ class CommonRenderer(ImageRenderer):
         return HeaderSectionData(
             height=header_height,
             avatar=avatar_img,
-            name=result.author.name,
+            name=self._sanitize_single_line(result.author.name, self.fontset.name),
             time=result.formartted_datetime,
             text_height=text_height,
         )
@@ -1265,6 +1298,10 @@ class CommonRenderer(ImageRenderer):
                     # 处理普通字符
                     char = paragraph[idx]
                     idx += 1
+                    if len(char) == 1 and not font_info.has_glyph(char):
+                        # Avoid "invisible tofu" by using a visible placeholder.
+                        # Users can supply a better font via `parser_custom_font`.
+                        char = "□"
                     char_width = font_info.get_char_width_fast(char)
 
                 # 如果当前行为空，直接添加字符
@@ -1297,6 +1334,17 @@ class CommonRenderer(ImageRenderer):
                 lines.append(current_line)
 
         return lines
+
+    def _sanitize_single_line(self, text: str, font_info: FontInfo) -> str:
+        if not text:
+            return text
+        out: list[str] = []
+        for ch in text:
+            if len(ch) == 1 and not ch.isspace() and not _uc_category(ch).startswith("C") and not font_info.has_glyph(ch):
+                out.append("□")
+            else:
+                out.append(ch)
+        return "".join(out)
 
     def _wrap_text_old(self, text: str, max_width: int, font_info: FontInfo) -> list[str]:
         """优化的文本自动换行算法，考虑中英文字符宽度相同
