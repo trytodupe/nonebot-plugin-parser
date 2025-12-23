@@ -5,6 +5,8 @@ parser_use_base64 = true
 parser_media_mode = "image_only"
 # "default"(no image card), "common"(PIL), "htmlrender"(Playwright), "htmlkit"(platform-specific htmlkit)
 parser_render_type = "common"
+# YouTube cookie (Netscape string). Fill this if yt-dlp hits "Sign in to confirm you’re not a bot".
+parser_ytb_ck = ""
 # Optional: custom font file name under plugin data dir (e.g. `./data/nonebot_plugin_parser/`).
 # The dump test will also copy from `src/nonebot_plugin_parser/renders/resources/` if present.
 parser_custom_font = "MonuTitl-0.96Cond.ttf"
@@ -13,6 +15,6 @@ parser_custom_font = "MonuTitl-0.96Cond.ttf"
 # Used by tests that dump rendered card images.
 # Prefer `urls = [...]` for multiple samples. `url = ...` is kept as a fallback.
 # Or set `urls_from_test_urls_md = true` to load from `tests/others/test_urls.md` (and use `urls_limit` to cap count).
-urls = ["https://www.bilibili.com/opus/1149429258142089240"]
+urls = ["https://www.youtube.com/watch?v=MlghNhVLY68"]
 # urls_from_test_urls_md = true
 # urls_limit = 99
