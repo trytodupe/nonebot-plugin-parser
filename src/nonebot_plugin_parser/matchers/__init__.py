@@ -9,6 +9,7 @@ from .rule import SUPER_PRIVATE, Searched, SearchResult, on_keyword_regex
 from ..utils import LimitedSizeDict
 from ..config import pconfig
 from ..helper import UniHelper, UniMessage
+from ..constants import PlatformEnum
 from ..parsers import BaseParser, ParseResult, BilibiliParser
 from ..renders import get_renderer
 from ..download import DOWNLOADER
@@ -61,6 +62,17 @@ def clear_result_cache():
     _RESULT_CACHE.clear()
 
 
+def _extract_bilibili_bvid(result: ParseResult) -> str | None:
+    if result.platform.name != PlatformEnum.BILIBILI:
+        return None
+
+    bvid = result.extra.get("bvid")
+    if isinstance(bvid, str) and bvid:
+        return bvid
+
+    return None
+
+
 @UniHelper.with_reaction
 async def parser_handler(
     sr: SearchResult = Searched(),
@@ -82,6 +94,8 @@ async def parser_handler(
     renderer = get_renderer(result.platform.name)
     async for message in renderer.render_messages(result):
         await message.send()
+    if bvid := _extract_bilibili_bvid(result):
+        await UniMessage(bvid).send()
 
     # 4. 缓存解析结果
     _RESULT_CACHE[cache_key] = result

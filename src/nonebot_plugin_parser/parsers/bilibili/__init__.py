@@ -175,7 +175,7 @@ class BilibiliParser(BaseParser):
             text=text,
             author=author,
             contents=contents,
-            extra={"info": ai_summary},
+            extra={"info": ai_summary, "bvid": video_info.bvid},
         )
 
     async def parse_dynamic(self, dynamic_id: int):
