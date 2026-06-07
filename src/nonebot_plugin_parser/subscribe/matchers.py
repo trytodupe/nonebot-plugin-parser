@@ -63,6 +63,9 @@ async def _handle_add(
 
     sub_mgr.add_sub(scope, group_id, uid)
 
+    # 立即初始化 last_seen 书签，消除「订阅 → 首次轮询」之间的窗口期
+    await sub_mgr.init_last_seen(uid)
+
     # 获取用户名以给出友好反馈
     try:
         user = User(int(uid))

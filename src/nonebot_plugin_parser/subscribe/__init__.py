@@ -181,6 +181,33 @@ class SubscriptionManager:
         self._last_seen[uid] = dynamic_id
         self._save()
 
+    async def init_last_seen(self, uid: str) -> str | None:
+        """为新订阅的 UID 立即初始化 last_seen 书签。
+
+        消除「订阅 → 首次轮询」之间的窗口期：
+        如果 UP 主在这个窗口内发新内容，不会被误标记为「历史」。
+
+        Returns:
+            最新 dynamic_id，如果获取失败则返回 None。
+        """
+        if self._last_seen.get(uid, "0") != "0":
+            return self._last_seen[uid]  # 已经初始化过
+
+        try:
+            user = User(int(uid))
+            data = await user.get_dynamics_new(offset="")
+            items = data.get("items", [])
+            if items:
+                newest = items[0].get("id_str", "0")
+                self._last_seen[uid] = newest
+                self._save()
+                logger.info(f"初始化 UID {uid} last_seen={newest}")
+                return newest
+            return None
+        except Exception:
+            logger.exception(f"初始化 UID {uid} last_seen 失败，将在首次轮询时重试")
+            return None
+
 
 # 模块级单例
 _sub_manager: SubscriptionManager | None = None
