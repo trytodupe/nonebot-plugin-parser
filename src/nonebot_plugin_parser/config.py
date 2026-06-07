@@ -65,6 +65,10 @@ class Config(BaseModel):
     """Pilmoji 表情 CDN"""
     parser_emoji_style: EmojiStyle = EmojiStyle.FACEBOOK
     """Pilmoji 表情样式"""
+    parser_bili_sub_enabled: bool = True
+    """是否启用 B 站订阅推送"""
+    parser_bili_sub_interval: int = 300
+    """B 站订阅轮询间隔（秒），默认 300（5 分钟）"""
 
     @property
     def nickname(self) -> str:
@@ -180,6 +184,16 @@ class Config(BaseModel):
     def emoji_style(self) -> EmojiStyle:
         """Pilmoji 表情样式"""
         return self.parser_emoji_style
+
+    @property
+    def bili_sub_enabled(self) -> bool:
+        """是否启用 B 站订阅推送"""
+        return self.parser_bili_sub_enabled
+
+    @property
+    def bili_sub_interval(self) -> int:
+        """B 站订阅轮询间隔（秒）"""
+        return self.parser_bili_sub_interval
 
 
 pconfig: Config = get_plugin_config(Config)

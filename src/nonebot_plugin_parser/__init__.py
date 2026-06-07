@@ -28,6 +28,9 @@ __plugin_meta__ = PluginMetadata(
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
 
+# 注册订阅模块（命令 + 轮询任务）
+from .subscribe import matchers as _sub_matchers  # noqa: F401, E402
+
 
 @scheduler.scheduled_job("cron", hour=1, minute=0, id="parser-clean-local-cache")
 async def clean_plugin_cache():
