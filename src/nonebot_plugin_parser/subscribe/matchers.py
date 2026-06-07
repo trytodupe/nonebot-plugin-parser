@@ -67,16 +67,17 @@ async def _handle_add(
     await sub_mgr.init_last_seen(uid)
 
     # 获取用户名以给出友好反馈
+    name = ""
     try:
         user = User(int(uid))
         info = await user.get_user_info()
         name = info.get("name", "")
-        if name:
-            await matcher.finish(f"已订阅 {name}（UID: {uid}）")
-        else:
-            await matcher.finish(f"已订阅 UID: {uid}")
     except Exception:
         logger.exception(f"获取 UID {uid} 用户信息失败")
+
+    if name:
+        await matcher.finish(f"已订阅 {name}（UID: {uid}）")
+    else:
         await matcher.finish(f"已订阅 UID: {uid}（无法获取用户名，订阅已生效）")
 
 
