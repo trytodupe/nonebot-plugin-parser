@@ -17,6 +17,32 @@ def _live_item(content):
     }
 
 
+def test_extract_live_url_from_current_major_layout():
+    from nonebot_plugin_parser.subscribe import _extract_url_from_item
+
+    item = _live_item(None)
+    module_dynamic = item["modules"]["module_dynamic"]
+    module_dynamic["additional"] = None
+    module_dynamic["major"] = {
+        "type": "MAJOR_TYPE_LIVE_RCMD",
+        "live": None,
+        "live_rcmd": {
+            "content": json.dumps(
+                {
+                    "type": 1,
+                    "live_play_info": {
+                        "room_id": 242721,
+                        "uid": 23396430,
+                        "title": "[osu!]DFC被打死了",
+                    },
+                }
+            )
+        },
+    }
+
+    assert _extract_url_from_item(item) == "https://live.bilibili.com/242721"
+
+
 def test_extract_live_url_from_json_content():
     from nonebot_plugin_parser.subscribe import _extract_url_from_item
 

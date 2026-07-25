@@ -27,11 +27,11 @@ _SUBS_PATH: Path = pconfig.data_dir / "bilibili_subscriptions.json"
 
 def _extract_live_room_id(item: dict) -> str | None:
     module_dynamic = item.get("modules", {}).get("module_dynamic", {})
+    major = module_dynamic.get("major")
     additional = module_dynamic.get("additional")
-    if not isinstance(additional, dict):
-        return None
-
-    live_rcmd = additional.get("live_rcmd")
+    live_rcmd = major.get("live_rcmd") if isinstance(major, dict) else None
+    if not isinstance(live_rcmd, dict) and isinstance(additional, dict):
+        live_rcmd = additional.get("live_rcmd")
     if not isinstance(live_rcmd, dict):
         return None
 
@@ -57,9 +57,10 @@ def _extract_url_from_item(item: dict) -> str | None:
     id_str = item.get("id_str", "")
     major = item.get("modules", {}).get("module_dynamic", {}).get("major")
 
+    if room_id := _extract_live_room_id(item):
+        return f"https://live.bilibili.com/{room_id}"
+
     if major is None:
-        if room_id := _extract_live_room_id(item):
-            return f"https://live.bilibili.com/{room_id}"
         return f"https://t.bilibili.com/{id_str}" if id_str else None
 
     major_type = major.get("type", "")
