@@ -14,16 +14,42 @@ from nonebot.exception import ActionFailed, NetworkError
 
 require("nonebot_plugin_apscheduler")
 require("nonebot_plugin_alconna")
-from nonebot_plugin_apscheduler import scheduler
-from nonebot_plugin_alconna.uniseg import Target, SupportAdapter, UniMessage
-
 from bilibili_api.user import User
+from nonebot_plugin_apscheduler import scheduler
+from nonebot_plugin_alconna.uniseg import Target, SupportAdapter
 
 from ..config import pconfig
-from ..constants import PlatformEnum
 from ..renders import get_renderer
+from ..constants import PlatformEnum
 
 _SUBS_PATH: Path = pconfig.data_dir / "bilibili_subscriptions.json"
+
+
+def _extract_live_room_id(item: dict) -> str | None:
+    module_dynamic = item.get("modules", {}).get("module_dynamic", {})
+    additional = module_dynamic.get("additional")
+    if not isinstance(additional, dict):
+        return None
+
+    live_rcmd = additional.get("live_rcmd")
+    if not isinstance(live_rcmd, dict):
+        return None
+
+    content = live_rcmd.get("content")
+    if isinstance(content, str):
+        try:
+            content = json.loads(content)
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(content, dict):
+        return None
+
+    live_play_info = content.get("live_play_info")
+    if not isinstance(live_play_info, dict):
+        return None
+
+    room_id = live_play_info.get("room_id")
+    return str(room_id) if room_id else None
 
 
 def _extract_url_from_item(item: dict) -> str | None:
@@ -32,6 +58,8 @@ def _extract_url_from_item(item: dict) -> str | None:
     major = item.get("modules", {}).get("module_dynamic", {}).get("major")
 
     if major is None:
+        if room_id := _extract_live_room_id(item):
+            return f"https://live.bilibili.com/{room_id}"
         return f"https://t.bilibili.com/{id_str}" if id_str else None
 
     major_type = major.get("type", "")
@@ -121,8 +149,9 @@ class SubscriptionManager:
         for uid, info in data.get("last_seen", {}).items():
             self._last_seen[uid] = info.get("last_dynamic_id", "0")
 
-        logger.info(f"已加载 {sum(len(v) for v in self._subs.values())} 条订阅，"
-                     f"{len(self._last_seen)} 个 UID 的检查记录")
+        logger.info(
+            f"已加载 {sum(len(v) for v in self._subs.values())} 条订阅，{len(self._last_seen)} 个 UID 的检查记录"
+        )
 
     def _save(self) -> None:
         subscriptions: list[dict] = []
@@ -130,16 +159,15 @@ class SubscriptionManager:
             for uid in uids:
                 subscriptions.append({"scope": scope, "group_id": group_id, "uid": uid})
 
-        last_seen = {
-            uid: {"last_dynamic_id": lid, "last_checked": time.time()}
-            for uid, lid in self._last_seen.items()
-        }
+        last_seen = {uid: {"last_dynamic_id": lid, "last_checked": time.time()} for uid, lid in self._last_seen.items()}
 
-        self._path.write_text(json.dumps(
-            {"subscriptions": subscriptions, "last_seen": last_seen},
-            ensure_ascii=False,
-            indent=2,
-        ))
+        self._path.write_text(
+            json.dumps(
+                {"subscriptions": subscriptions, "last_seen": last_seen},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
 
     # ---- subscription CRUD ----
 
@@ -222,6 +250,7 @@ def get_subscription_manager() -> SubscriptionManager:
 
 # ---- APScheduler 轮询任务 ----
 
+
 @scheduler.scheduled_job(
     "interval",
     seconds=pconfig.bili_sub_interval,
@@ -237,8 +266,8 @@ async def check_bilibili_updates():
         return
 
     # 延迟导入，避免循环引用
-    from ..matchers import get_parser_by_type
     from ..parsers import BilibiliParser
+    from ..matchers import get_parser_by_type
 
     parser = get_parser_by_type(BilibiliParser)
     renderer = get_renderer(PlatformEnum.BILIBILI)
@@ -311,9 +340,7 @@ async def _check_single_uid(
             keyword, searched = parser.search_url(url)
             result = await parser.parse(keyword, searched)
         except Exception:
-            logger.exception(
-                f"解析动态失败 UID={uid} id={dynamic_id_str} type={dynamic_type} url={url}"
-            )
+            logger.exception(f"解析动态失败 UID={uid} id={dynamic_id_str} type={dynamic_type} url={url}")
             continue
 
         # 渲染 + 发送到每个订阅群
@@ -329,9 +356,6 @@ async def _check_single_uid(
                 # 群间短延迟，避免 QQ 频率限制
                 await asyncio.sleep(0.5)
             except ActionFailed as e:
-                logger.warning(
-                    f"发送失败 {scope}_{group_id}: "
-                    f"bot 可能不在群内或无权限 ({e})"
-                )
+                logger.warning(f"发送失败 {scope}_{group_id}: bot 可能不在群内或无权限 ({e})")
             except NetworkError as e:
                 logger.warning(f"网络错误 {scope}_{group_id}: {e}")
