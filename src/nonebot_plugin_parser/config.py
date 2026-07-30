@@ -69,6 +69,8 @@ class Config(BaseModel):
     """是否启用 B 站订阅推送"""
     parser_bili_sub_interval: int = 300
     """B 站订阅轮询间隔（秒），默认 300（5 分钟）"""
+    parser_bili_live_interval: int = 60
+    """B 站直播状态轮询间隔（秒），默认 60（1 分钟）"""
 
     @property
     def nickname(self) -> str:
@@ -194,6 +196,11 @@ class Config(BaseModel):
     def bili_sub_interval(self) -> int:
         """B 站订阅轮询间隔（秒）"""
         return self.parser_bili_sub_interval
+
+    @property
+    def bili_live_interval(self) -> int:
+        """B 站直播状态轮询间隔（秒）"""
+        return self.parser_bili_live_interval
 
 
 pconfig: Config = get_plugin_config(Config)

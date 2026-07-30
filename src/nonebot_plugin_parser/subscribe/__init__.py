@@ -9,6 +9,7 @@ import time
 import asyncio
 from pathlib import Path
 
+from httpx import AsyncClient
 from nonebot import logger, require
 from nonebot.exception import ActionFailed, NetworkError
 
@@ -20,12 +21,13 @@ from nonebot_plugin_alconna.uniseg import Target, SupportAdapter
 
 from ..config import pconfig
 from ..renders import get_renderer
-from ..constants import PlatformEnum
+from ..constants import COMMON_HEADER, COMMON_TIMEOUT, PlatformEnum
 
 _SUBS_PATH: Path = pconfig.data_dir / "bilibili_subscriptions.json"
+_LIVE_STATUS_URL = "https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids"
 
 
-def _extract_live_room_id(item: dict) -> str | None:
+def _extract_live_play_info(item: dict) -> dict | None:
     module_dynamic = item.get("modules", {}).get("module_dynamic", {})
     major = module_dynamic.get("major")
     additional = module_dynamic.get("additional")
@@ -47,9 +49,26 @@ def _extract_live_room_id(item: dict) -> str | None:
     live_play_info = content.get("live_play_info")
     if not isinstance(live_play_info, dict):
         return None
+    return live_play_info
 
+
+def _extract_live_room_id(item: dict) -> str | None:
+    live_play_info = _extract_live_play_info(item)
+    if live_play_info is None:
+        return None
     room_id = live_play_info.get("room_id")
     return str(room_id) if room_id else None
+
+
+def _extract_live_start_time(item: dict) -> int | None:
+    live_play_info = _extract_live_play_info(item)
+    if live_play_info is None:
+        return None
+    try:
+        live_start = int(live_play_info.get("live_start_time", 0))
+    except (TypeError, ValueError):
+        return None
+    return live_start or None
 
 
 def _extract_url_from_item(item: dict) -> str | None:
@@ -129,6 +148,7 @@ class SubscriptionManager:
         self._path = _SUBS_PATH
         self._subs: dict[tuple[str, str], set[str]] = {}
         self._last_seen: dict[str, str] = {}
+        self._last_live_start: dict[str, int] = {}
         self._load()
 
     # ---- persistence ----
@@ -149,6 +169,8 @@ class SubscriptionManager:
 
         for uid, info in data.get("last_seen", {}).items():
             self._last_seen[uid] = info.get("last_dynamic_id", "0")
+            if info.get("last_live_start") is not None:
+                self._last_live_start[uid] = int(info["last_live_start"])
 
         logger.info(
             f"已加载 {sum(len(v) for v in self._subs.values())} 条订阅，{len(self._last_seen)} 个 UID 的检查记录"
@@ -160,7 +182,16 @@ class SubscriptionManager:
             for uid in uids:
                 subscriptions.append({"scope": scope, "group_id": group_id, "uid": uid})
 
-        last_seen = {uid: {"last_dynamic_id": lid, "last_checked": time.time()} for uid, lid in self._last_seen.items()}
+        tracked_uids = self._last_seen.keys() | self._last_live_start.keys()
+        last_seen = {}
+        for uid in tracked_uids:
+            info = {
+                "last_dynamic_id": self._last_seen.get(uid, "0"),
+                "last_checked": time.time(),
+            }
+            if uid in self._last_live_start:
+                info["last_live_start"] = self._last_live_start[uid]
+            last_seen[uid] = info
 
         self._path.write_text(
             json.dumps(
@@ -210,6 +241,13 @@ class SubscriptionManager:
         self._last_seen[uid] = dynamic_id
         self._save()
 
+    def get_last_live_start(self, uid: str) -> int | None:
+        return self._last_live_start.get(uid)
+
+    def set_last_live_start(self, uid: str, live_start: int) -> None:
+        self._last_live_start[uid] = live_start
+        self._save()
+
     async def init_last_seen(self, uid: str) -> str | None:
         """为新订阅的 UID 立即初始化 last_seen 书签。
 
@@ -237,6 +275,18 @@ class SubscriptionManager:
             logger.exception(f"初始化 UID {uid} last_seen 失败，将在首次轮询时重试")
             return None
 
+    async def init_live_state(self, uid: str) -> None:
+        """记录订阅时的直播状态，避免把已经开始的直播当成新开播。"""
+        if uid in self._last_live_start:
+            return
+        try:
+            statuses = await _fetch_live_statuses([uid])
+            status = statuses.get(uid, {})
+            live_start = _get_active_live_start(status)
+            self.set_last_live_start(uid, live_start or 0)
+        except Exception:
+            logger.exception(f"初始化 UID {uid} 直播状态失败，将在首次轮询时重试")
+
 
 # 模块级单例
 _sub_manager: SubscriptionManager | None = None
@@ -250,6 +300,94 @@ def get_subscription_manager() -> SubscriptionManager:
 
 
 # ---- APScheduler 轮询任务 ----
+
+
+def _get_active_live_start(status: dict) -> int | None:
+    if status.get("live_status") != 1:
+        return None
+    try:
+        live_start = int(status.get("live_time", 0))
+    except (TypeError, ValueError):
+        return None
+    return live_start or None
+
+
+async def _fetch_live_statuses(uids: list[str]) -> dict[str, dict]:
+    params = [("uids[]", uid) for uid in uids]
+    async with AsyncClient(headers=COMMON_HEADER, timeout=COMMON_TIMEOUT) as client:
+        response = await client.get(_LIVE_STATUS_URL, params=params)
+        response.raise_for_status()
+    payload = response.json()
+    if payload.get("code") != 0 or not isinstance(payload.get("data"), dict):
+        raise RuntimeError(f"B 站直播状态接口返回异常: {payload.get('code')} {payload.get('message', '')}")
+    return {str(uid): status for uid, status in payload["data"].items() if isinstance(status, dict)}
+
+
+def _collect_new_live_sessions(
+    statuses: dict[str, dict],
+    sub_mgr,
+) -> list[tuple[str, str]]:
+    sessions: list[tuple[str, str]] = []
+    for uid, status in statuses.items():
+        live_start = _get_active_live_start(status)
+        previous = sub_mgr.get_last_live_start(uid)
+        if previous is None:
+            sub_mgr.set_last_live_start(uid, live_start or 0)
+            continue
+        if live_start is None or live_start == previous:
+            continue
+        room_id = status.get("room_id")
+        if not room_id:
+            continue
+        sub_mgr.set_last_live_start(uid, live_start)
+        sessions.append((uid, str(room_id)))
+    return sessions
+
+
+def _is_announced_live_item(item: dict, sub_mgr, uid: str) -> bool:
+    live_start = _extract_live_start_time(item)
+    return live_start is not None and live_start == sub_mgr.get_last_live_start(uid)
+
+
+@scheduler.scheduled_job(
+    "interval",
+    seconds=pconfig.bili_live_interval,
+    id="parser-bili-live-check",
+)
+async def check_bilibili_live_updates():
+    if not pconfig.bili_sub_enabled:
+        return
+
+    sub_mgr = get_subscription_manager()
+    uids = sub_mgr.get_all_uids()
+    if not uids:
+        return
+
+    try:
+        statuses = await _fetch_live_statuses(uids)
+    except Exception:
+        logger.exception("检查 B 站直播状态时出错")
+        return
+
+    sessions = _collect_new_live_sessions(statuses, sub_mgr)
+    if not sessions:
+        return
+
+    from ..parsers import BilibiliParser
+    from ..matchers import get_parser_by_type
+
+    parser = get_parser_by_type(BilibiliParser)
+    renderer = get_renderer(PlatformEnum.BILIBILI)
+    for uid, room_id in sessions:
+        groups = sub_mgr.get_groups_for_uid(uid)
+        logger.info(f"UID {uid} 开播，推送到 {len(groups)} 个群")
+        await _send_subscription_url(
+            uid,
+            f"https://live.bilibili.com/{room_id}",
+            groups,
+            parser,
+            renderer,
+        )
 
 
 @scheduler.scheduled_job(
@@ -329,6 +467,10 @@ async def _check_single_uid(
 
     # 按时间正序发送（最旧的先发）
     for item in reversed(new_items):
+        if _is_announced_live_item(item, sub_mgr, uid):
+            logger.debug(f"跳过已播报的直播动态 UID={uid} id={item.get('id_str', '?')}")
+            continue
+
         url = _extract_url_from_item(item)
         if not url:
             continue
@@ -336,27 +478,43 @@ async def _check_single_uid(
         dynamic_id_str = item.get("id_str", "?")
         dynamic_type = item.get("type", "?")
 
-        # 解析
-        try:
-            keyword, searched = parser.search_url(url)
-            result = await parser.parse(keyword, searched)
-        except Exception:
-            logger.exception(f"解析动态失败 UID={uid} id={dynamic_id_str} type={dynamic_type} url={url}")
-            continue
+        await _send_subscription_url(
+            uid,
+            url,
+            groups,
+            parser,
+            renderer,
+            context=f"id={dynamic_id_str} type={dynamic_type}",
+        )
 
-        # 渲染 + 发送到每个订阅群
-        for scope, group_id in groups:
-            try:
-                target = Target(
-                    group_id,
-                    scope=scope,
-                    adapter=SupportAdapter.onebot11,
-                )
-                async for message in renderer.render_messages(result):
-                    await message.send(target=target)
-                # 群间短延迟，避免 QQ 频率限制
-                await asyncio.sleep(0.5)
-            except ActionFailed as e:
-                logger.warning(f"发送失败 {scope}_{group_id}: bot 可能不在群内或无权限 ({e})")
-            except NetworkError as e:
-                logger.warning(f"网络错误 {scope}_{group_id}: {e}")
+
+async def _send_subscription_url(
+    uid: str,
+    url: str,
+    groups: list[tuple[str, str]],
+    parser,
+    renderer,
+    *,
+    context: str = "live",
+) -> None:
+    try:
+        keyword, searched = parser.search_url(url)
+        result = await parser.parse(keyword, searched)
+    except Exception:
+        logger.exception(f"解析订阅内容失败 UID={uid} {context} url={url}")
+        return
+
+    for scope, group_id in groups:
+        try:
+            target = Target(
+                group_id,
+                scope=scope,
+                adapter=SupportAdapter.onebot11,
+            )
+            async for message in renderer.render_messages(result):
+                await message.send(target=target)
+            await asyncio.sleep(0.5)
+        except ActionFailed as e:
+            logger.warning(f"发送失败 {scope}_{group_id}: bot 可能不在群内或无权限 ({e})")
+        except NetworkError as e:
+            logger.warning(f"网络错误 {scope}_{group_id}: {e}")

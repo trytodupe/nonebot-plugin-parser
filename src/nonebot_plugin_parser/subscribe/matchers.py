@@ -2,17 +2,14 @@
 
 from nonebot import logger, on_command
 from nonebot.rule import to_me
-from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
-from nonebot.permission import SUPERUSER
+from nonebot.matcher import Matcher
 from nonebot.adapters import Message
-from nonebot_plugin_uninfo import ADMIN, Session, UniSession
-from nonebot_plugin_alconna.uniseg import UniMessage
-
 from bilibili_api.user import User
+from nonebot.permission import SUPERUSER
+from nonebot_plugin_uninfo import ADMIN, Session, UniSession
 
 from . import get_subscription_manager
-
 
 sub_cmd = on_command("sub", rule=to_me(), permission=SUPERUSER | ADMIN(), block=True)
 
@@ -65,6 +62,7 @@ async def _handle_add(
 
     # 立即初始化 last_seen 书签，消除「订阅 → 首次轮询」之间的窗口期
     await sub_mgr.init_last_seen(uid)
+    await sub_mgr.init_live_state(uid)
 
     # 获取用户名以给出友好反馈
     name = ""
