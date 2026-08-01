@@ -1,3 +1,4 @@
+from enum import Enum
 from pathlib import Path
 
 from nonebot import logger, require, get_driver, get_plugin_config
@@ -15,6 +16,12 @@ _config_dir: Path = _store.get_plugin_config_dir()
 _data_dir: Path = _store.get_plugin_data_dir()
 
 
+class MediaMode(str, Enum):
+    all = "all"
+    image_only = "image_only"
+    none = "none"
+
+
 class Config(BaseModel):
     parser_bili_ck: str | None = None
     """bilibili cookies"""
@@ -28,6 +35,10 @@ class Config(BaseModel):
     """是否需要上传音频文件"""
     parser_use_base64: bool = False
     """是否使用 base64 编码发送图片，音频，视频"""
+    parser_media_mode: MediaMode = MediaMode.all
+    """媒体下载模式"""
+    parser_only_send_card: bool = False
+    """是否仅发送渲染卡片，不发送原始媒体内容"""
     parser_max_size: int = 90
     """资源最大大小 默认 100 单位 MB"""
     parser_duration_maximum: int = 480
@@ -138,6 +149,14 @@ class Config(BaseModel):
     def use_base64(self) -> bool:
         """是否使用 base64 编码发送图片，音频，视频"""
         return self.parser_use_base64
+
+    @property
+    def media_mode(self) -> MediaMode:
+        return self.parser_media_mode
+
+    @property
+    def only_send_card(self) -> bool:
+        return self.parser_only_send_card
 
     @property
     def append_url(self) -> bool:

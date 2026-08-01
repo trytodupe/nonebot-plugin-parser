@@ -1,5 +1,6 @@
 from re import Match, Pattern, compile
 from abc import ABC
+from enum import Enum
 from typing import TYPE_CHECKING, Any, TypeVar, ClassVar, cast, final
 from asyncio import Task
 from pathlib import Path
@@ -8,6 +9,7 @@ from typing_extensions import Unpack
 
 from .data import Platform, ParseResult, ImageContent, ParseResultKwargs
 from .task import PathTask
+from ..config import MediaMode
 from ..config import pconfig as pconfig
 from ..download import downloader
 from ..constants import IOS_HEADER, COMMON_HEADER, ANDROID_HEADER, COMMON_TIMEOUT
@@ -22,6 +24,12 @@ HandlerFunc = Callable[[T, Match[str]], Coroutine[Any, Any, ParseResult]]
 KeyPatterns = list[tuple[str, Pattern[str]]]
 
 _KEY_PATTERNS = "_key_patterns"
+
+
+class MediaType(str, Enum):
+    video = "video"
+    audio = "audio"
+    image = "image"
 
 
 # 注册处理器装饰器
@@ -119,6 +127,15 @@ class BaseParser:
         return ParseResult(platform=cls.platform, **kwargs)
 
     @staticmethod
+    def allows_media(media_type: MediaType) -> bool:
+        mode = pconfig.media_mode
+        if mode is MediaMode.all:
+            return True
+        if mode is MediaMode.image_only:
+            return media_type is MediaType.image
+        return False
+
+    @staticmethod
     async def get_redirect_url(
         url: str,
         headers: dict[str, str] | None = None,
@@ -185,6 +202,11 @@ class BaseParser:
         from .data import VideoContent
         from ..utils import convert_video_to_gif, extract_video_first_frame
 
+        if not self.allows_media(MediaType.video):
+            if isinstance(url_or_task, Task):
+                url_or_task.cancel()
+            return None
+
         if isinstance(url_or_task, str):
             path_task = downloader.download_video(url_or_task, ext_headers=self.headers)
         elif isinstance(url_or_task, Task):
@@ -227,6 +249,9 @@ class BaseParser:
         image_urls: list[str],
     ):
         """创建图片内容列表"""
+        if not self.allows_media(MediaType.image):
+            return []
+
         contents: list[ImageContent] = []
         for url in image_urls:
             task = downloader.download_img(url, ext_headers=self.headers)
@@ -239,6 +264,11 @@ class BaseParser:
         alt: str | None = None,
     ):
         """创建单个图片内容"""
+        if not self.allows_media(MediaType.image):
+            if isinstance(url_or_task, Task):
+                url_or_task.cancel()
+            return None
+
         if isinstance(url_or_task, str):
             path_task = downloader.download_img(url_or_task, ext_headers=self.headers)
         elif isinstance(url_or_task, Task):
@@ -253,6 +283,11 @@ class BaseParser:
     ):
         """创建音频内容"""
         from .data import AudioContent
+
+        if not self.allows_media(MediaType.audio):
+            if isinstance(url_or_task, Task):
+                url_or_task.cancel()
+            return None
 
         if isinstance(url_or_task, str):
             path_task = downloader.download_audio(url_or_task, ext_headers=self.headers)

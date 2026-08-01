@@ -147,6 +147,13 @@ class ParseResult:
         return self.extra.get("info")
 
     @property
+    def followup_messages(self) -> list[str]:
+        messages = self.extra.get("followup_messages")
+        if not isinstance(messages, list):
+            return []
+        return [message for message in messages if isinstance(message, str) and message]
+
+    @property
     def video(self) -> VideoContent | None:
         """主视频 (只有 contents 首项为视频的时候才返回 否则为 None)"""
         if len(self.contents) != 1:

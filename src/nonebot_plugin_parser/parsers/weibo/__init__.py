@@ -100,8 +100,8 @@ class WeiBoParser(BaseParser):
                     graphics.append(text)
             elif element.name == "img":
                 src = element.get("src")
-                if isinstance(src, str):
-                    graphics.append(self.create_image(src))
+                if isinstance(src, str) and (image := self.create_image(src)):
+                    graphics.append(image)
 
         author = self.create_author(
             data.userinfo.screen_name,
@@ -150,7 +150,7 @@ class WeiBoParser(BaseParser):
             author=author,
             title=play_info.title,
             text=play_info.text,
-            contents=[video_content],
+            contents=[video_content] if video_content is not None else [],
             timestamp=play_info.real_date,
         )
 

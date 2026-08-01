@@ -215,6 +215,8 @@ parser_xhs_ck=""
 # [可选] Youtube Cookie, Youtube 视频因人机检测下载失败，需填
 parser_ytb_ck=""
 
+# 也可将 Netscape 格式 Cookie 文件放在插件 data 目录，文件名为 ytb_cookies.txt 或 cookies.txt
+
 # [可选] 代理, 仅作用于 youtube, tiktok 解析
 # 推特解析会自动读取环境变量中的 http_proxy / https_proxy(代理软件通常会自动设置)
 parser_proxy=None
@@ -226,6 +228,12 @@ parser_need_upload=False
 # 注意：编解码和传输 base64 会占用更多的内存,性能和带宽, 甚至可能会使 websocket 连接崩溃
 # 因此该配置项仅推荐 nonebot 和 协议端不在同一机器的用户配置
 parser_use_base64=False
+
+# [可选] 媒体下载模式：all 下载全部媒体，image_only 只下载卡片所需图片，none 不下载媒体
+parser_media_mode="all"
+
+# [可选] 仅发送渲染卡片，不发送解析出的原始媒体内容
+parser_only_send_card=False
 
 # [可选] 视频最大解析时长，单位：秒
 parser_duration_maximum=480

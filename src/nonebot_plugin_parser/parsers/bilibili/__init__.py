@@ -12,6 +12,7 @@ from bilibili_api.video import Video
 from bilibili_api.login_v2 import QrCodeLogin, QrCodeLoginEvents
 
 from ..base import (
+    MediaType,
     BaseParser,
     PlatformEnum,
     ParseException,
@@ -124,35 +125,39 @@ class BilibiliParser(BaseParser):
         url = f"https://bilibili.com/{video_info.bvid}"
         url += f"?p={page_info.index + 1}" if page_info.index > 0 else ""
 
-        # 视频下载 task
-        async def download_video():
-            output_path = pconfig.cache_dir / f"{video_info.bvid}-{page_num}.mp4"
-            if output_path.exists():
-                return output_path
-            v_url, a_url = await self.extract_download_urls(video=video, page_index=page_info.index)
-            if page_info.duration > pconfig.duration_maximum:
-                logger.warning(f"视频时长 {page_info.duration} 秒, 超过 {pconfig.duration_maximum} 秒, 取消下载")
-                raise IgnoreException
-            if a_url is not None:
-                path = await self.downloader.download_av_and_merge(
-                    v_url,
-                    a_url,
-                    output_path=output_path,
-                    ext_headers=self.headers,
-                )
-            else:
-                path = await self.downloader._download_file(
+        contents: list[MediaContent] = []
+        if self.allows_media(MediaType.video):
+
+            async def download_video():
+                output_path = pconfig.cache_dir / f"{video_info.bvid}-{page_num}.mp4"
+                if output_path.exists():
+                    return output_path
+                v_url, a_url = await self.extract_download_urls(video=video, page_index=page_info.index)
+                if page_info.duration > pconfig.duration_maximum:
+                    logger.warning(f"视频时长 {page_info.duration} 秒, 超过 {pconfig.duration_maximum} 秒, 取消下载")
+                    raise IgnoreException
+                if a_url is not None:
+                    return await self.downloader.download_av_and_merge(
+                        v_url,
+                        a_url,
+                        output_path=output_path,
+                        ext_headers=self.headers,
+                    )
+                return await self.downloader._download_file(
                     v_url,
                     file_name=output_path.name,
                     ext_headers=self.headers,
                 )
-            return path
 
-        video_content = self.create_video(
-            asyncio.create_task(download_video()),
-            page_info.cover,
-            page_info.duration,
-        )
+            video_content = self.create_video(
+                asyncio.create_task(download_video()),
+                page_info.cover,
+                page_info.duration,
+            )
+            if video_content is not None:
+                contents.append(video_content)
+        elif page_info.cover:
+            contents.extend(self.create_images([page_info.cover]))
 
         return self.result(
             url=url,
@@ -160,8 +165,8 @@ class BilibiliParser(BaseParser):
             timestamp=page_info.timestamp,
             text=video_info.desc,
             author=author,
-            contents=[video_content],
-            extra={"info": ai_summary},
+            contents=contents,
+            extra={"info": ai_summary, "followup_messages": [video_info.bvid]},
         )
 
     async def parse_dynamic_or_opus(self, dynamic_id: int):
@@ -233,8 +238,8 @@ class BilibiliParser(BaseParser):
         for node in opus_data.extract_nodes():
             if isinstance(node, str):
                 result.graphics.append(node)
-            else:
-                result.graphics.append(self.create_image(node.url, alt=node.alt))
+            elif image := self.create_image(node.url, alt=node.alt):
+                result.graphics.append(image)
 
         return result
 
@@ -252,12 +257,14 @@ class BilibiliParser(BaseParser):
         # 下载封面
         if cover := room_data.cover:
             cover_task = self.downloader.download_img(cover, ext_headers=self.headers)
-            contents.append(self.create_image(cover_task))
+            if image := self.create_image(cover_task):
+                contents.append(image)
 
         # 下载关键帧
         if keyframe := room_data.keyframe:
             keyframe_task = self.downloader.download_img(keyframe, ext_headers=self.headers)
-            contents.append(self.create_image(keyframe_task))
+            if image := self.create_image(keyframe_task):
+                contents.append(image)
 
         author = self.create_author(room_data.name, room_data.avatar)
 
@@ -288,7 +295,8 @@ class BilibiliParser(BaseParser):
 
         graphics: list[str | ImageContent] = []
         for fav in favdata.medias:
-            graphics.append(self.create_image(fav.cover, alt=fav.desc))
+            if image := self.create_image(fav.cover, alt=fav.desc):
+                graphics.append(image)
             graphics.append(fav.desc)
 
         return self.result(

@@ -32,6 +32,9 @@ class BaseRenderer(ABC):
         raise NotImplementedError
 
     async def render_contents(self) -> AsyncGenerator[UniMessage[Any], None]:
+        if pconfig.only_send_card:
+            return
+
         failed_count = 0
         # 可合并的 Seg，例如 文字，图片
         mergeable_segs: list[ForwardNodeInner] = []

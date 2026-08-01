@@ -1,10 +1,13 @@
 import importlib
+from collections.abc import AsyncIterator
 
 from nonebot import logger
 
 from .base import BaseRenderer
 from .common import CommonRenderer
+from ..helper import UniMessage
 from .default import DefaultRenderer
+from ..parsers import ParseResult
 
 RENDERER: type[BaseRenderer] | None = None
 
@@ -37,3 +40,11 @@ def get_renderer(platform: str) -> type[BaseRenderer]:
 
     module = importlib.import_module("." + platform, package=__name__)
     return getattr(module, "Renderer")
+
+
+async def render_messages(result: ParseResult) -> AsyncIterator[UniMessage]:
+    renderer = get_renderer(result.platform.name)(result)
+    async for message in renderer.render_messages():
+        yield message
+    for followup in result.followup_messages:
+        yield UniMessage(followup)

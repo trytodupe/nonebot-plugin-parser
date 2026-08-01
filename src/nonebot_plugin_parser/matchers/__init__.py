@@ -10,7 +10,7 @@ from ..utils import LimitedSizeDict
 from ..config import pconfig
 from ..helper import UniHelper, UniMessage
 from ..parsers import BaseParser, ParseResult, BilibiliParser
-from ..renders import get_renderer
+from ..renders import render_messages
 
 
 def _get_enabled_parser_classes() -> list[type[BaseParser]]:
@@ -78,8 +78,7 @@ async def parser_handler(
         logger.debug(f"命中缓存: {cache_key}, 结果: {result}")
 
     # 3. 渲染内容消息并发送
-    renderer = get_renderer(result.platform.name)(result)
-    async for message in renderer.render_messages():
+    async for message in render_messages(result):
         await message.send()
 
     # 4. 缓存解析结果

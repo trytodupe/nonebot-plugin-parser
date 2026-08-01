@@ -1,5 +1,6 @@
 import re
 from typing import ClassVar
+from pathlib import Path
 
 from httpx import AsyncClient
 
@@ -8,18 +9,36 @@ from ..cookie import save_cookies_with_netscape
 from ...download import yt_dlp_downloader
 
 
+def detect_youtube_cookiefile() -> Path | None:
+    candidates = (
+        pconfig.data_dir / "ytb_cookies.txt",
+        pconfig.data_dir / "cookies.txt",
+        pconfig.config_dir / "ytb_cookies.txt",
+    )
+    for path in candidates:
+        try:
+            if path.is_file() and path.stat().st_size > 0:
+                return path
+        except OSError:
+            continue
+    return None
+
+
 class YouTubeParser(BaseParser):
     platform: ClassVar[Platform] = Platform(name=PlatformEnum.YOUTUBE, display_name="油管")
 
     def __init__(self):
         super().__init__()
-        self.cookies_file = pconfig.config_dir / "ytb_cookies.txt"
+        self.cookies_file: Path | None = None
         if pconfig.ytb_ck:
+            self.cookies_file = pconfig.config_dir / "ytb_cookies.txt"
             save_cookies_with_netscape(
                 pconfig.ytb_ck,
                 self.cookies_file,
                 "youtube.com",
             )
+        else:
+            self.cookies_file = detect_youtube_cookiefile()
 
     @handle("youtu", r"youtu\.be/[A-Za-z\d\._\?%&\+\-=/#]+")
     @handle("youtube", r"youtube\.com/(?:watch|shorts)(?:/[A-Za-z\d_\-]+|\?v=[A-Za-z\d_\-]+)")
