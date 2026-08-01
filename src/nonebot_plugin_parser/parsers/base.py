@@ -186,7 +186,7 @@ class BaseParser:
 
         author = Author(name=name, description=description)
 
-        if avatar_url:
+        if avatar_url and self.allows_media(MediaType.image):
             author.avatar = PathTask(downloader.download_img(avatar_url, ext_headers=self.headers))
 
         return author

@@ -166,7 +166,8 @@ class BilibiliParser(BaseParser):
             text=video_info.desc,
             author=author,
             contents=contents,
-            extra={"info": ai_summary, "followup_messages": [video_info.bvid]},
+            extra={"info": ai_summary},
+            followup_messages=[video_info.bvid],
         )
 
     async def parse_dynamic_or_opus(self, dynamic_id: int):

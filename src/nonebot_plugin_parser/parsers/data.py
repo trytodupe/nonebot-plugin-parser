@@ -119,6 +119,8 @@ class ParseResult:
 
     extra: dict[str, Any] = field(default_factory=dict)
     """额外信息"""
+    followup_messages: list[str] = field(default_factory=list)
+    """卡片和媒体消息之后发送的纯文本消息"""
     repost: ParseResult | None = None
     """转发的内容"""
     render_image: Path | None = None
@@ -145,13 +147,6 @@ class ParseResult:
     @property
     def extra_info(self) -> str | None:
         return self.extra.get("info")
-
-    @property
-    def followup_messages(self) -> list[str]:
-        messages = self.extra.get("followup_messages")
-        if not isinstance(messages, list):
-            return []
-        return [message for message in messages if isinstance(message, str) and message]
 
     @property
     def video(self) -> VideoContent | None:
@@ -274,4 +269,5 @@ class ParseResultKwargs(TypedDict, total=False):
     url: str | None
     author: Author | None
     extra: dict[str, Any]
+    followup_messages: list[str]
     repost: ParseResult | None

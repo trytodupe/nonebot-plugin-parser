@@ -60,3 +60,4 @@ async def test_none_skips_image_downloads(app: App, monkeypatch):
     parser = DummyParser()
     assert parser.create_images(["https://example.com/image.jpg"]) == []
     assert parser.create_image("https://example.com/image.jpg") is None
+    assert parser.create_author("Author", "https://example.com/avatar.jpg").avatar is None

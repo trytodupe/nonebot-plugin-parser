@@ -6,7 +6,7 @@ async def test_parse_result_exposes_followup_messages(app: App):
 
     result = ParseResult(
         platform=Platform(name="dummy", display_name="Dummy"),
-        extra={"followup_messages": ["BV1uCzoYEEir"]},
+        followup_messages=["BV1uCzoYEEir"],
     )
 
     assert result.followup_messages == ["BV1uCzoYEEir"]
@@ -25,7 +25,7 @@ async def test_render_messages_appends_followups_after_card(app: App, monkeypatc
     monkeypatch.setattr(renders, "RENDERER", StubRenderer)
     result = ParseResult(
         platform=Platform(name="dummy", display_name="Dummy"),
-        extra={"followup_messages": ["BV1uCzoYEEir"]},
+        followup_messages=["BV1uCzoYEEir"],
     )
 
     messages = [message async for message in renders.render_messages(result)]
