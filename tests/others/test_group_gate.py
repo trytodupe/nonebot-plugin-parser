@@ -95,6 +95,18 @@ async def test_denied_sensitive_message_does_not_reach_parser():
     parser_handler.assert_not_awaited()
 
 
+async def test_denied_private_bm_does_not_start_download():
+    from nonebot_plugin_parser import matchers
+
+    with (
+        patch.object(matchers, "private_access_allowed", AsyncMock(return_value=False)),
+        patch.object(matchers, "_download_bilibili_audio", AsyncMock()) as download_audio,
+    ):
+        await matchers.bilibili_audio_handler(object(), SimpleNamespace(), object())
+
+    download_audio.assert_not_awaited()
+
+
 async def test_regular_group_message_bypasses_gate(group_gate_module):
     from nonebot_plugin_parser.config import GroupGateMode
 

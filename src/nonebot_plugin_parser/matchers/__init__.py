@@ -123,9 +123,8 @@ async def regular_parser_handler(
     await parser_handler(sr)
 
 
-@on_command("bm", priority=3, block=True).handle()
 @UniHelper.with_reaction
-async def _(message: Message = CommandArg()):
+async def _download_bilibili_audio(message: Message):
     text = message.extract_plain_text()
     matched = re.search(r"(BV[A-Za-z0-9]{10})(\s\d{1,3})?", text)
     if not matched:
@@ -147,6 +146,17 @@ async def _(message: Message = CommandArg()):
 
     if pconfig.need_upload:
         await UniMessage(UniHelper.file_seg(audio_path)).send()
+
+
+@on_command("bm", priority=3, block=True).handle()
+async def bilibili_audio_handler(
+    bot: Bot,
+    event: Event,
+    message: Message = CommandArg(),
+):
+    if not await private_access_allowed(bot, event):
+        return
+    await _download_bilibili_audio(message)
 
 
 from ..download import yt_dlp_downloader
