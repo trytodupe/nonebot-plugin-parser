@@ -246,6 +246,12 @@ parser_max_size=90
 # 可选值: ["bilibili", "douyin", "kuaishou", "twitter", "youtube", "acfun", "tiktok", "weibo", "xiaohongshu"]
 parser_disabled_platforms='["twitter"]'
 
+# [可选] X/Twitter 与 YouTube 群聊解析的共享 gate 模式
+# auto: gate 插件已加载时使用，否则保持原行为
+# required: gate 插件未加载或 interface 不兼容时拒绝启动
+# off: 即使 gate 插件已加载也不使用
+parser_group_gate_mode="auto"
+
 # [可选] 渲染器类型
 # 可选 "default"(无图片渲染), "common"(PIL 通用图片渲染), "htmlrender"(htmlrender), "htmlkit"(htmlkit, 暂不可用)
 parser_render_type="common"

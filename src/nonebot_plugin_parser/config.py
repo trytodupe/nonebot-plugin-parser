@@ -22,6 +22,12 @@ class MediaMode(str, Enum):
     none = "none"
 
 
+class GroupGateMode(str, Enum):
+    auto = "auto"
+    required = "required"
+    off = "off"
+
+
 class Config(BaseModel):
     parser_bili_ck: str | None = None
     """bilibili cookies"""
@@ -69,6 +75,8 @@ class Config(BaseModel):
     """Pilmoji 表情样式"""
     parser_group_blacklist_enabled: bool = True
     """是否启用群组黑名单模式(默认启用，即所有群聊的解析都是开启的)"""
+    parser_group_gate_mode: GroupGateMode = GroupGateMode.auto
+    """敏感平台群聊门禁模式"""
 
     @property
     def nickname(self) -> str:
@@ -207,6 +215,10 @@ class Config(BaseModel):
     def group_blacklist_enabled(self) -> bool:
         """是否启用群组黑名单模式"""
         return self.parser_group_blacklist_enabled
+
+    @property
+    def group_gate_mode(self) -> GroupGateMode:
+        return self.parser_group_gate_mode
 
 
 pconfig: Config = get_plugin_config(Config)

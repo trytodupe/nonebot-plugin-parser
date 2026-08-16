@@ -3,7 +3,7 @@ from typing import TypeVar
 
 from nonebot import logger, get_driver, on_command
 from nonebot.params import CommandArg
-from nonebot.adapters import Message
+from nonebot.adapters import Bot, Event, Message
 
 from .rule import SUPER_PRIVATE, Searched, SearchResult, on_keyword_regex
 from ..utils import LimitedSizeDict
@@ -11,12 +11,18 @@ from ..config import pconfig
 from ..helper import UniHelper, UniMessage
 from ..parsers import BaseParser, ParseResult, BilibiliParser
 from ..renders import render_messages
+from ..constants import PlatformEnum
+from ..group_gate import configure_group_gate, sensitive_group_access_allowed
 
 
 def _get_enabled_parser_classes() -> list[type[BaseParser]]:
     disabled_platforms = set(pconfig.disabled_platforms)
     all_subclass = BaseParser.get_all_subclass()
     return [_cls for _cls in all_subclass if _cls.platform.name not in disabled_platforms]
+
+
+def _is_sensitive_parser_class(parser_class: type[BaseParser]) -> bool:
+    return parser_class.platform.name in {PlatformEnum.TWITTER, PlatformEnum.YOUTUBE}
 
 
 # 关键词 -> Parser 映射
@@ -37,19 +43,27 @@ def get_parser_by_type(parser_type: type[T]) -> T:
 
 @get_driver().on_startup
 def register_parser_matcher():
+    configure_group_gate(pconfig.group_gate_mode)
     enabled_classes = _get_enabled_parser_classes()
 
     enabled_platforms = []
+    patterns = []
+    sensitive_patterns = []
     for _cls in enabled_classes:
         parser = _cls()
         enabled_platforms.append(parser.platform.display_name)
         for keyword, _ in _cls._key_patterns:
             KEYWORD_PARSER_MAP[keyword] = parser
+        target = sensitive_patterns if _is_sensitive_parser_class(_cls) else patterns
+        target.extend(_cls._key_patterns)
     logger.info(f"启用平台: {', '.join(sorted(enabled_platforms))}")
 
-    patterns = [p for _cls in enabled_classes for p in _cls._key_patterns]
-    matcher = on_keyword_regex(*patterns)
-    matcher.append_handler(parser_handler)
+    if patterns:
+        matcher = on_keyword_regex(*patterns)
+        matcher.append_handler(parser_handler)
+    if sensitive_patterns:
+        sensitive_matcher = on_keyword_regex(*sensitive_patterns)
+        sensitive_matcher.append_handler(sensitive_parser_handler)
 
 
 # 缓存结果
@@ -85,6 +99,16 @@ async def parser_handler(
     _RESULT_CACHE[cache_key] = result
 
 
+async def sensitive_parser_handler(
+    bot: Bot,
+    event: Event,
+    sr: SearchResult = Searched(),
+):
+    if not await sensitive_group_access_allowed(bot, event):
+        return
+    await parser_handler(sr)
+
+
 @on_command("bm", priority=3, block=True).handle()
 @UniHelper.with_reaction
 async def _(message: Message = CommandArg()):
@@ -116,9 +140,8 @@ from ..download import yt_dlp_downloader
 if yt_dlp_downloader is not None:
     from ..parsers import YouTubeParser
 
-    @on_command("ym", priority=3, block=True).handle()
     @UniHelper.with_reaction
-    async def _(message: Message = CommandArg()):
+    async def _download_youtube_audio(message: Message):
         text = message.extract_plain_text()
         parser = get_parser_by_type(YouTubeParser)
         _, matched = parser.search_url(text)
@@ -132,6 +155,16 @@ if yt_dlp_downloader is not None:
 
         if pconfig.need_upload:
             await UniMessage(UniHelper.file_seg(audio_path)).send()
+
+    @on_command("ym", priority=3, block=True).handle()
+    async def _(
+        bot: Bot,
+        event: Event,
+        message: Message = CommandArg(),
+    ):
+        if not await sensitive_group_access_allowed(bot, event):
+            return
+        await _download_youtube_audio(message)
 
 
 @on_command("blogin", block=True, permission=SUPER_PRIVATE).handle()
