@@ -12,7 +12,11 @@ from ..helper import UniHelper, UniMessage
 from ..parsers import BaseParser, ParseResult, BilibiliParser
 from ..renders import render_messages
 from ..constants import PlatformEnum
-from ..group_gate import configure_group_gate, sensitive_group_access_allowed
+from ..group_gate import (
+    configure_group_gate,
+    private_access_allowed,
+    gated_event_access_allowed,
+)
 
 
 def _get_enabled_parser_classes() -> list[type[BaseParser]]:
@@ -60,7 +64,7 @@ def register_parser_matcher():
 
     if patterns:
         matcher = on_keyword_regex(*patterns)
-        matcher.append_handler(parser_handler)
+        matcher.append_handler(regular_parser_handler)
     if sensitive_patterns:
         sensitive_matcher = on_keyword_regex(*sensitive_patterns)
         sensitive_matcher.append_handler(sensitive_parser_handler)
@@ -104,7 +108,17 @@ async def sensitive_parser_handler(
     event: Event,
     sr: SearchResult = Searched(),
 ):
-    if not await sensitive_group_access_allowed(bot, event):
+    if not await gated_event_access_allowed(bot, event):
+        return
+    await parser_handler(sr)
+
+
+async def regular_parser_handler(
+    bot: Bot,
+    event: Event,
+    sr: SearchResult = Searched(),
+):
+    if not await private_access_allowed(bot, event):
         return
     await parser_handler(sr)
 
@@ -162,7 +176,7 @@ if yt_dlp_downloader is not None:
         event: Event,
         message: Message = CommandArg(),
     ):
-        if not await sensitive_group_access_allowed(bot, event):
+        if not await gated_event_access_allowed(bot, event):
             return
         await _download_youtube_audio(message)
 
