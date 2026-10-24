@@ -246,14 +246,32 @@ class BilibiliParser(BaseParser):
 
     async def parse_live(self, room_id: int):
         """解析直播"""
-        from bilibili_api.live import LiveRoom
+        from bilibili_api.utils.network import Api
 
-        from .live import RoomData
+        from .live import RoomData, AnchorInfo
 
-        room = LiveRoom(room_display_id=room_id, credential=await self.credential)
-        info_dict = await room.get_room_info()
-
+        credential = await self.credential
+        # getInfoByRoom 经常返回 -352，使用上游 PR #568 中的替代接口。
+        info_dict = (
+            await Api(
+                url="https://api.live.bilibili.com/room/v1/Room/get_info",
+                method="GET",
+                credential=credential,
+            )
+            .update_params(room_id=room_id)
+            .result
+        )
         room_data = convert(info_dict, RoomData)
+        anchor_dict = (
+            await Api(
+                url="https://api.bilibili.com/x/web-interface/card",
+                method="GET",
+                credential=credential,
+            )
+            .update_params(mid=room_data.uid)
+            .result
+        )
+        anchor = convert(anchor_dict["card"], AnchorInfo)
         contents: list[MediaContent] = []
         # 下载封面
         if cover := room_data.cover:
@@ -267,7 +285,7 @@ class BilibiliParser(BaseParser):
             if image := self.create_image(keyframe_task):
                 contents.append(image)
 
-        author = self.create_author(room_data.name, room_data.avatar)
+        author = self.create_author(anchor.name, anchor.face)
 
         url = f"https://www.bilibili.com/blackboard/live/live-activity-player.html?enterTheRoom=0&cid={room_id}"
         return self.result(
